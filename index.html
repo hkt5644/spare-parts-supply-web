@@ -69,15 +69,21 @@ h1{font-size:clamp(24px,3vw,30px);font-weight:700;margin:0;letter-spacing:-.03em
 /* 단계 박스 */
 .flow{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border:1px solid var(--line-strong)}
 .stage{appearance:none;font:inherit;color:var(--ink);background:var(--surface);text-align:center;cursor:pointer;display:grid;gap:1px;justify-items:center;
-  border:0;border-left:1px solid var(--line);padding:14px 8px 16px}
+  border:0;border-left:1px solid var(--line);padding:14px 8px 16px;transition:background-color .15s,color .15s}
 .stage:first-child{border-left:0}
 .stage:hover{background:var(--th)}
+.stage:active{background:var(--line)}
 .stage .k{font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--muted)}
 .stage .n{font-size:30px;font-weight:700;line-height:1.15;font-variant-numeric:tabular-nums}
 .stage .l{font-weight:700;font-size:14px}
 .stage .s{font-size:11.5px;color:var(--muted);line-height:1.4}
-.stage.hot{background:var(--solid);color:var(--solid-ink)}
-.stage.hot .k,.stage.hot .s{color:var(--solid-ink);opacity:.72}
+/* 처리할 일이 있는 단계: 위쪽 빨간 선 + 빨간 숫자 */
+.stage.hot{box-shadow:inset 0 3px 0 var(--crit)}
+.stage.hot .n{color:var(--crit)}
+/* 선택한 단계: 남색 바탕 */
+.stage.sel,.stage.sel:hover{background:var(--solid);color:var(--solid-ink)}
+.stage.sel .k,.stage.sel .s{color:var(--solid-ink);opacity:.72}
+.stage.sel .n{color:var(--solid-ink)}
 
 /* 안내 박스 */
 .note{background:var(--note);padding:18px 22px;display:grid;gap:6px;font-size:13.5px;color:var(--muted)}
@@ -239,6 +245,9 @@ const TABS = [
 ];
 
 let S = null, me = null, users = [], tab = 'unit', flash = {}, gateMsg = null, busy = false, startedFor, publicMode = false;
+// 단계 박스 중 선택된 것 (메뉴로 이동하면 그 메뉴의 첫 단계)
+const STAGE_OF_TAB = {unit:0, bn:1, central:3, proc:4};
+let stageSel = null;
 let form = {equip:EQUIP[0], part:'P01'};
 
 const pad = n => String(n).padStart(2,'0');
@@ -415,8 +424,9 @@ function renderFlow(){
     {tab:'proc', n:S.procs.filter(x => x.status !== '입고완료').length, l:'조달 진행', s:'중앙 재고 부족분'},
     {tab:'bn', n:S.shipments.filter(x => x.status === '수송중').length, l:'대대로 수송 중', s:'수령 확인 대기'}
   ];
+  const sel = stageSel ?? STAGE_OF_TAB[tab] ?? -1;
   document.getElementById('flow').innerHTML = st.map((x, i) =>
-    `<button type="button" class="stage${x.hot && x.n > 0 ? ' hot' : ''}" data-tab="${x.tab}">
+    `<button type="button" class="stage${x.hot && x.n > 0 ? ' hot' : ''}${i === sel ? ' sel' : ''}" aria-pressed="${i === sel}" data-tab="${x.tab}" data-stage="${i}">
       <span class="k">STEP ${i + 1}</span><span class="n">${x.n}</span><span class="l">${x.l}</span><span class="s">${x.s}</span></button>`).join('');
 }
 
@@ -598,8 +608,9 @@ function render(){
   document.getElementById('panel').innerHTML = P[tab]();
 }
 
-function go(t){
+function go(t, stage){
   tab = t; flash = {};
+  stageSel = stage != null ? Number(stage) : (STAGE_OF_TAB[t] ?? -1);
   try { history.replaceState(null, '', '#' + t); } catch (e) {}
   render();
 }
@@ -607,7 +618,7 @@ function go(t){
 /* ---------- 이벤트 ---------- */
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-tab]');
-  if (t) { go(t.dataset.tab); return; }
+  if (t) { go(t.dataset.tab, t.dataset.stage); return; }
   const b = e.target.closest('[data-act]');
   if (!b || b.disabled) return;
   const {act, id} = b.dataset;
