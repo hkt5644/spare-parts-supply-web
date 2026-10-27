@@ -211,7 +211,7 @@ fieldset{border:0;margin:0;padding:0;min-width:0}
         <ul>
           <li>정비부대가 부속을 쓰면 물류대대 재고가 줄고, 정수에 못 미치는 만큼 중앙 물류에 자동 청구됩니다.</li>
           <li>중앙에 없는 부속은 조달로 넘어가고, 입고되면 밀린 청구에 자동 배분됩니다.</li>
-          <li>데이터는 서버(Supabase)에 저장되어 모든 사용자가 같은 내용을 봅니다. 각 화면의 작업은 해당 역할만 할 수 있습니다.</li>
+          <li>데이터는 서버(Supabase)에 저장되어 모든 사용자가 같은 내용을 봅니다. 공개 모드에서는 로그인 없이 누구나 보고 처리할 수 있습니다.</li>
         </ul>
       </div>
       <main class="panel" id="panel"></main>
@@ -227,7 +227,7 @@ const SUPABASE_KEY = 'sb_publishable_VzOt6lFgvAhQbHId5B7rzA_lMzN2v2Y';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const EQUIP = ['전술차량 A형 (가상-101)', '전술차량 B형 (가상-207)', '발전기 10kW (가상-G03)', '지게차 3톤 (가상-F12)'];
-const ROLE_LABEL = {pending:'승인 대기', unit:'정비부대', bn:'중간 물류대대', central:'중앙 물류', proc:'조달', admin:'관리자'};
+const ROLE_LABEL = {pending:'승인 대기', unit:'정비부대', bn:'중간 물류대대', central:'중앙 물류', proc:'조달', admin:'관리자', guest:'비로그인'};
 const TABS = [
   {id:'unit', label:'정비부대', title:'정비 사용 등록', icon:'M14.7 6.3a4 4 0 0 0-5.2 5.2L4 17v3h3l5.5-5.5a4 4 0 0 0 5.2-5.2l-2.5 2.5-2.2-.5-.5-2.2z'},
   {id:'bn', label:'중간 물류대대', title:'재고 · 정수 관리', icon:'M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z M3 7.5l9 4.5 9-4.5 M12 12v9'},
@@ -238,7 +238,7 @@ const TABS = [
   {id:'users', label:'사용자 관리', title:'사용자 관리', admin:true, icon:'M16 19v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 17.5V19 M10 10.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6 M20 19v-1.5a3.5 3.5 0 0 0-2.5-3.35 M15.5 4.6a3 3 0 0 1 0 5.8'}
 ];
 
-let S = null, me = null, users = [], tab = 'unit', flash = {}, gateMsg = null, busy = false, startedFor;
+let S = null, me = null, users = [], tab = 'unit', flash = {}, gateMsg = null, busy = false, startedFor, publicMode = false;
 let form = {equip:EQUIP[0], part:'P01'};
 
 const pad = n => String(n).padStart(2,'0');
@@ -247,7 +247,7 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>'
 const part = id => S.parts.find(p => p.id === id);
 const need = p => p.onHand + p.pending <= p.rop;
 const recommend = p => Math.ceil(p.monthly / 30 * (p.lead + 15));
-const can = role => me && (me.role === 'admin' || me.role === role);
+const can = role => publicMode || (me && (me.role === 'admin' || me.role === role));
 const lock = role => can(role) ? '' : ` disabled title="${ROLE_LABEL[role]} 역할만 할 수 있습니다"`;
 const roNote = role => can(role) ? '' : `<p class="msg info">읽기 전용입니다. 이 화면의 작업은 ${ROLE_LABEL[role]} 역할만 할 수 있습니다. (내 역할: ${ROLE_LABEL[me.role]})</p>`;
 
@@ -266,10 +266,20 @@ async function start(session){
   const uid = session?.user?.id || null;
   if (uid === startedFor) return;
   startedFor = uid;
-  if (!session) { me = null; S = null; showGate(loginView()); return; }
+  const pm = await sb.rpc('public_mode');
+  publicMode = pm.data === true;
+  if (!session) {
+    if (publicMode) { enterGuest(); return; }
+    me = null; S = null; showGate(loginView()); return;
+  }
   const { data } = await sb.from('profiles').select('id,email,role').eq('id', uid).maybeSingle();
   me = data || {id:uid, email:session.user.email, role:'pending'};
-  if (me.role === 'pending') { showGate(pendingView()); return; }
+  if (me.role === 'pending' && !publicMode) { showGate(pendingView()); return; }
+  try { await reload(); } catch (e) { showGate(`<p class="msg crit">데이터를 불러오지 못했습니다: ${esc(e.message)}</p>`); }
+}
+
+async function enterGuest(){
+  me = {id:null, email:null, role:'guest'};
   try { await reload(); } catch (e) { showGate(`<p class="msg crit">데이터를 불러오지 못했습니다: ${esc(e.message)}</p>`); }
 }
 
@@ -301,7 +311,7 @@ function loginView(){
       <div class="frm-act"><button class="btn primary" type="submit">${m.button}</button></div>
     </form>
     ${gateMsg ? `<p class="msg ${gateMsg.c}" role="status">${esc(gateMsg.t)}</p>` : ''}
-    <div class="actions">${modeBtn('password', '비밀번호로 로그인')}${modeBtn('signup', '처음 가입')}${modeBtn('link', '로그인 링크로 들어가기')}</div>
+    <div class="actions">${publicMode ? '<button class="btn sm" type="button" data-act="guest">로그인 없이 계속</button>' : ''}${modeBtn('password', '비밀번호로 로그인')}${modeBtn('signup', '처음 가입')}${modeBtn('link', '로그인 링크로 들어가기')}</div>
     <p class="hint">처음 가입하면 '승인 대기' 상태가 됩니다. 관리자가 역할을 정해 주면 사용할 수 있습니다. 로그인 링크로 들어온 적만 있다면, 로그인한 뒤 '비밀번호 설정'에서 비밀번호를 정하세요.</p>`;
 }
 
@@ -338,8 +348,14 @@ function authError(error){
 function renderWho(){
   const el = document.getElementById('who');
   if (!me) { el.innerHTML = ''; return; }
-  el.innerHTML = `<span class="email">${esc(me.email || '')}</span>${chip(ROLE_LABEL[me.role] || me.role, me.role === 'pending' ? 'warn' : 'mute')}
-    ${me.role === 'admin' ? '<button class="btn sm" type="button" data-act="reset">처음 상태로</button>' : ''}
+  const reset = (publicMode || me.role === 'admin') ? '<button class="btn sm" type="button" data-act="reset">처음 상태로</button>' : '';
+  if (!me.id) {
+    el.innerHTML = `${chip('공개 모드', 'info')}<span class="email">로그인 없이 사용 중</span>${reset}
+      <button class="btn sm" type="button" data-act="login">로그인</button>`;
+    return;
+  }
+  el.innerHTML = `${publicMode ? chip('공개 모드', 'info') : ''}<span class="email">${esc(me.email || '')}</span>${chip(ROLE_LABEL[me.role] || me.role, me.role === 'pending' ? 'warn' : 'mute')}
+    ${reset}
     ${me.role === 'pending' ? '' : '<button class="btn sm" type="button" data-act="account">비밀번호 설정</button>'}
     <button class="btn sm" type="button" data-act="logout">로그아웃</button>`;
 }
@@ -597,6 +613,8 @@ document.addEventListener('click', e => {
   const {act, id} = b.dataset;
   if (act === 'logout') { sb.auth.signOut(); return; }
   if (act === 'mode') { authMode = b.dataset.mode; gateMsg = null; showGate(loginView()); return; }
+  if (act === 'login') { authMode = 'password'; gateMsg = null; showGate(loginView()); return; }
+  if (act === 'guest') { enterGuest(); return; }
   if (act === 'account') { go('account'); return; }
   if (act === 'reset') call('reset_demo', {}, 'unit', {c:'info', t:'처음 상태로 되돌렸습니다.'}).then(() => go('unit'));
   if (act === 'auto') call('auto_requisition', {}, 'bn', rid => rid
