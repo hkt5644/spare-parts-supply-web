@@ -257,6 +257,8 @@ let form = {equip:EQUIP[0], part:'P01'};
 
 const pad = n => String(n).padStart(2,'0');
 const fmt = ts => { const d = new Date(ts); return `${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+// 재고번호: 대시·공백은 무시하고 숫자 13자리
+const nsnOk = s => String(s).replace(/\D/g, '').length === 13;
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const part = id => S.parts.find(p => p.id === id);
 const need = p => p.auth > 0 && p.onHand + p.pending <= p.rop;
@@ -395,7 +397,7 @@ async function reload(){
   const [parts, stock, usage, reqs, ships, procs, logs, equip, profs] = res.map(r => r.data);
   const st = (u, p) => stock.find(s => s.unit_id === u && s.part_id === p) || {};
   S = {
-    equipment: equip.map(e => ({id:e.id, name:e.name, active:e.active})),
+    equipment: equip.map(e => ({id:e.id, nsn:e.nsn, name:e.name, active:e.active})),
     parts: parts.map(p => { const b = st('BN', p.id), c = st('CENTRAL', p.id), m = st('MC1', p.id);
       return {id:p.id, nsn:p.nsn, name:p.name, unit:p.unit, lead:p.lead_days, monthly:p.monthly_use, own:m.on_hand ?? 0,
               onHand:b.on_hand ?? 0, pending:b.pending ?? 0, auth:b.authorized_qty ?? 0, rop:b.reorder_point ?? 0, central:c.on_hand ?? 0}; }),
@@ -472,15 +474,16 @@ function panelUnit(){
   const ownRows = S.parts.map(p => `<tr><td class="mono">${p.nsn}</td><td class="l">${esc(p.name)}</td>
     <td class="num"><input class="cell-in" type="number" min="0" id="own-${p.id}" data-own="${p.id}" value="${p.own}" aria-label="${esc(p.name)} 자체 보유"${mlock()}> ${p.unit}</td>
     <td class="num">${p.onHand}${p.unit}</td></tr>`).join('');
-  const partRow = (p, k) => `<tr${k === 'new' ? ' class="new"' : ''}><td class="mono">${k === 'new' ? '새 품목' : p.id}</td>
-    <td><input type="text" id="pnsn-${k}" value="${esc(p.nsn)}" placeholder="0000-00-000-0000" aria-label="품번"${mlock()}></td>
+  const partRow = (p, k) => `<tr${k === 'new' ? ' class="new"' : ''}>
+    <td><input type="text" class="mono" inputmode="numeric" id="pnsn-${k}" value="${esc(p.nsn)}" placeholder="재고번호 13자리" aria-label="재고번호"${mlock()}></td>
     <td><input type="text" id="pname-${k}" value="${esc(p.name)}" placeholder="품명" aria-label="품명"${mlock()}></td>
     <td><input type="text" class="w-unit" id="punit-${k}" value="${esc(p.unit)}" aria-label="단위"${mlock()}></td>
     <td><input class="cell-in" type="number" min="0" id="plead-${k}" value="${p.lead}" aria-label="조달 소요일"${mlock()}></td>
     <td><input class="cell-in" type="number" min="0" id="pmon-${k}" value="${p.monthly}" aria-label="월 소모량"${mlock()}></td>
     <td><button class="btn${k === 'new' ? ' primary' : ''} sm" type="button" data-act="${k === 'new' ? 'addpart' : 'savepart'}" data-id="${k === 'new' ? '' : p.id}"${mlock()}>${k === 'new' ? '추가' : '저장'}</button></td></tr>`;
   const eqRow = (e, k) => `<tr${k === 'new' ? ' class="new"' : ''}>
-    <td class="l"><input type="text" id="eq-${k}" value="${esc(e.name)}" placeholder="예: 전술차량 C형 (가상-310)" aria-label="장비 이름"${mlock()}></td>
+    <td><input type="text" class="mono" inputmode="numeric" id="eqn-${k}" value="${esc(e.nsn)}" placeholder="재고번호 13자리" aria-label="재고번호"${mlock()}></td>
+    <td class="l"><input type="text" id="eq-${k}" value="${esc(e.name)}" placeholder="장비명" aria-label="장비명"${mlock()}></td>
     <td>${k === 'new' ? '' : `<label class="chk"><input type="checkbox" id="eqa-${k}"${e.active ? ' checked' : ''}${mlock()}> 사용</label>`}</td>
     <td><button class="btn${k === 'new' ? ' primary' : ''} sm" type="button" data-act="${k === 'new' ? 'addeq' : 'saveeq'}" data-id="${k === 'new' ? '' : e.id}"${mlock()}>${k === 'new' ? '등록' : '저장'}</button></td></tr>`;
   return `<section class="card">
@@ -488,7 +491,7 @@ function panelUnit(){
       ${roNote('unit')}
       <form id="useForm"><fieldset${can('unit') ? '' : ' disabled'}>
         <div class="frm">
-          <label class="row"><span>장비</span><select id="f-equip">${eqs.map(e => `<option${e.name === form.equip ? ' selected' : ''}>${esc(e.name)}</option>`).join('')}</select></label>
+          <label class="row"><span>장비</span><select id="f-equip">${eqs.map(e => `<option value="${esc(e.name)}"${e.name === form.equip ? ' selected' : ''}>${e.nsn} ${esc(e.name)}</option>`).join('')}</select></label>
           <label class="row"><span>부속</span><select id="f-part">${S.parts.map(p => `<option value="${p.id}"${p.id === form.part ? ' selected' : ''}>${esc(p.name)} (자체 ${p.own} · 대대 ${p.onHand}${p.unit})</option>`).join('')}</select></label>
           <label class="row"><span>수량</span><input id="f-qty" type="number" min="1" value="1"></label>
           <label class="row"><span>정비 내용</span><input id="f-note" type="text" placeholder="예: 엔진오일 교환"></label>
@@ -506,21 +509,21 @@ function panelUnit(){
         <div class="head"><div><h2>정비부대 자체 재고</h2><p class="hint">정비부대가 직접 보관 중인 부속 수량입니다. 숫자를 바꾸면 바로 저장됩니다.</p></div></div>
         ${manageNote()}
         ${msg('own')}
-        <div class="tbl"><table><thead><tr><th>품번(가상)</th><th>품명</th><th class="num">자체 보유</th><th class="num">대대 보유</th></tr></thead><tbody>${ownRows}</tbody></table></div>
+        <div class="tbl"><table><thead><tr><th>재고번호</th><th>품명</th><th class="num">자체 보유</th><th class="num">대대 보유</th></tr></thead><tbody>${ownRows}</tbody></table></div>
       </section>
       <section class="card">
-        <div class="head"><div><h2>장비 목록</h2><p class="hint">정비 사용 등록에서 고를 장비입니다. '사용'을 끄면 목록에서 빠지고 기록은 남습니다.</p></div></div>
+        <div class="head"><div><h2>장비 목록</h2><p class="hint">부여받은 재고번호(숫자 13자리)로 등록합니다. 대시는 넣지 않아도 자동으로 맞춥니다. '사용'을 끄면 목록에서 빠지고 기록은 남습니다.</p></div></div>
         ${manageNote()}
         ${msg('equip')}
-        <div class="tbl"><table><thead><tr><th>장비 이름</th><th>사용</th><th>처리</th></tr></thead>
-          <tbody>${S.equipment.map(e => eqRow(e, e.id)).join('')}${eqRow({name:'', active:true}, 'new')}</tbody></table></div>
+        <div class="tbl"><table><thead><tr><th>재고번호</th><th>장비명</th><th>사용</th><th>처리</th></tr></thead>
+          <tbody>${S.equipment.map(e => eqRow(e, e.id)).join('')}${eqRow({nsn:'', name:'', active:true}, 'new')}</tbody></table></div>
       </section>
     </div>
     <section class="card">
-      <div class="head"><div><h2>부속 품목 관리</h2><p class="hint">부속 종류를 추가하거나 고칩니다. 새 품목은 물류대대 화면에서 정수와 재청구점을 정해야 자동 청구 대상이 됩니다.</p></div></div>
+      <div class="head"><div><h2>부속 품목 관리</h2><p class="hint">부속 종류를 재고번호(숫자 13자리) 기준으로 추가하거나 고칩니다. 새 품목은 물류대대 화면에서 정수와 재청구점을 정해야 자동 청구 대상이 됩니다.</p></div></div>
       ${manageNote()}
       ${msg('parts')}
-      <div class="tbl"><table><thead><tr><th>코드</th><th>품번(가상)</th><th>품명</th><th>단위</th><th class="num">조달 소요일</th><th class="num">월 소모량</th><th>처리</th></tr></thead>
+      <div class="tbl"><table><thead><tr><th>재고번호</th><th>품명</th><th>단위</th><th class="num">조달 소요일</th><th class="num">월 소모량</th><th>처리</th></tr></thead>
         <tbody>${S.parts.map(p => partRow(p, p.id)).join('')}${partRow({nsn:'', name:'', unit:'EA', lead:14, monthly:0}, 'new')}</tbody></table></div>
     </section>`;
 }
@@ -558,7 +561,7 @@ function panelBn(){
       ${roNote('bn')}
       <div class="formula">조건: 보유 + 청구중 ≤ 재청구점 → 청구량 = 정수 − (보유 + 청구중)</div>
       ${msg('bn')}
-      <div class="tbl"><table><thead><tr><th>품번(가상)</th><th>품명</th><th class="num">보유</th><th class="num">청구중</th><th class="num">정수</th><th class="num">재청구점</th><th class="num">추천 정수</th><th>보유율</th><th>상태</th></tr></thead><tbody>${inv}</tbody></table></div>
+      <div class="tbl"><table><thead><tr><th>재고번호</th><th>품명</th><th class="num">보유</th><th class="num">청구중</th><th class="num">정수</th><th class="num">재청구점</th><th class="num">추천 정수</th><th>보유율</th><th>상태</th></tr></thead><tbody>${inv}</tbody></table></div>
     </section>
     <div class="grid2">
       <section class="card">
@@ -607,7 +610,7 @@ function panelCentral(){
     </div>
     <section class="card">
       <div class="head"><div><h2>중앙 재고</h2></div></div>
-      <div class="tbl"><table><thead><tr><th>품번(가상)</th><th>품명</th><th class="num">중앙 보유</th><th class="num">조달 소요</th><th>상태</th></tr></thead><tbody>${stock}</tbody></table></div>
+      <div class="tbl"><table><thead><tr><th>재고번호</th><th>품명</th><th class="num">중앙 보유</th><th class="num">조달 소요</th><th>상태</th></tr></thead><tbody>${stock}</tbody></table></div>
     </section>`;
 }
 
@@ -682,16 +685,19 @@ document.addEventListener('click', e => {
   if (act === 'savepart' || act === 'addpart') {
     const k = act === 'addpart' ? 'new' : id;
     const v = f => document.getElementById(`${f}-${k}`).value;
+    if (!nsnOk(v('pnsn'))) { flash = {parts:{c:'crit', t:'재고번호는 숫자 13자리로 입력하세요.'}}; render(); return; }
     call('save_part', {p_id:act === 'addpart' ? null : id, p_nsn:v('pnsn'), p_name:v('pname'), p_unit:v('punit'),
-      p_lead:parseInt(v('plead'), 10), p_monthly:parseInt(v('pmon'), 10)}, 'parts', pid => act === 'addpart'
-      ? {c:'ok', t:`${pid} 품목을 추가했습니다. 물류대대 화면에서 정수와 재청구점을 정하세요.`}
-      : {c:'ok', t:`${pid} 품목을 저장했습니다.`});
+      p_lead:parseInt(v('plead'), 10), p_monthly:parseInt(v('pmon'), 10)}, 'parts', nsn => act === 'addpart'
+      ? {c:'ok', t:`${nsn} 품목을 추가했습니다. 물류대대 화면에서 정수와 재청구점을 정하세요.`}
+      : {c:'ok', t:`${nsn} 품목을 저장했습니다.`});
   }
   if (act === 'saveeq' || act === 'addeq') {
     const k = act === 'addeq' ? 'new' : id;
-    call('save_equipment', {p_id:act === 'addeq' ? null : Number(id), p_name:document.getElementById('eq-' + k).value,
+    const nsn = document.getElementById('eqn-' + k).value;
+    if (!nsnOk(nsn)) { flash = {equip:{c:'crit', t:'재고번호는 숫자 13자리로 입력하세요.'}}; render(); return; }
+    call('save_equipment', {p_id:act === 'addeq' ? null : Number(id), p_nsn:nsn, p_name:document.getElementById('eq-' + k).value,
       p_active:act === 'addeq' ? true : document.getElementById('eqa-' + k).checked}, 'equip',
-      {c:'ok', t:act === 'addeq' ? '장비를 등록했습니다.' : '장비 정보를 저장했습니다.'});
+      n => ({c:'ok', t:act === 'addeq' ? `${n} 장비를 등록했습니다.` : `${n} 장비 정보를 저장했습니다.`}));
   }
   if (act === 'auto') call('auto_requisition', {}, 'bn', rid => rid
     ? {c:'ok', t:`${rid} 생성. 아래 '확인 대기 청구'에서 확인하면 중앙 물류로 전송됩니다.`}
