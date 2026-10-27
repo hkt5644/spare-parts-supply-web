@@ -151,6 +151,19 @@ select,input[type="text"],input[type="number"],input[type="email"],input[type="p
 .row > select,.row > input[type="text"],.row > input[type="email"],.row > input[type="password"]{width:calc(100% - 24px)}
 .row > input[type="number"]{width:110px}
 .frm-act{display:flex;justify-content:flex-end;margin-top:16px}
+textarea{font:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:0;padding:8px 10px;resize:vertical}
+.row > textarea{margin:8px 12px;width:calc(100% - 24px)}
+.chk.pad{padding:12px 16px}
+textarea:focus-visible{outline:2px solid var(--info);outline-offset:2px}
+
+/* 공지사항 */
+.notices{display:grid;border-top:2px solid var(--line-strong)}
+.notice{padding:16px 6px;border-bottom:1px solid var(--line);display:grid;gap:8px}
+.notice.pin{background:var(--th)}
+.notice-h{display:flex;gap:6px 16px;flex-wrap:wrap;align-items:baseline;justify-content:space-between}
+.notice-h h3{margin:0;font-size:16px;font-weight:600}
+.notice-h .mono{color:var(--muted);font-size:12.5px}
+.notice-b{margin:0;font-size:14px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere}
 fieldset{border:0;margin:0;padding:0;min-width:0}
 
 .msg{font-size:13.5px;padding:12px 16px;margin:0}
@@ -240,6 +253,7 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const EQUIP = ['전술차량 A형 (가상-101)', '전술차량 B형 (가상-207)', '발전기 10kW (가상-G03)', '지게차 3톤 (가상-F12)'];
 const ROLE_LABEL = {pending:'승인 대기', unit:'정비부대', bn:'중간 물류대대', central:'중앙 물류', proc:'조달', admin:'관리자', guest:'비로그인'};
 const TABS = [
+  {id:'notice', label:'공지사항', title:'공지사항', icon:'M3 10v4h3l6 4V6L6 10z M16 9a3.5 3.5 0 0 1 0 6 M19 6a7.5 7.5 0 0 1 0 12'},
   {id:'unit', label:'정비부대', title:'정비 사용 등록', icon:'M14.7 6.3a4 4 0 0 0-5.2 5.2L4 17v3h3l5.5-5.5a4 4 0 0 0 5.2-5.2l-2.5 2.5-2.2-.5-.5-2.2z'},
   {id:'bn', label:'중간 물류대대', title:'재고 · 정수 관리', icon:'M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z M3 7.5l9 4.5 9-4.5 M12 12v9'},
   {id:'central', label:'중앙 물류', title:'중앙 출고 처리', icon:'M4 21V8l8-5 8 5v13 M9 21v-6h6v6 M9 10h.01 M15 10h.01'},
@@ -253,6 +267,8 @@ let S = null, me = null, users = [], tab = 'unit', flash = {}, gateMsg = null, b
 // 단계 박스 중 선택된 것 (메뉴로 이동하면 그 메뉴의 첫 단계)
 const STAGE_OF_TAB = {unit:0, bn:1, central:3, proc:4};
 let stageSel = null;
+// 수정 중인 공지 id (없으면 새 공지 작성)
+let noticeEdit = null;
 let form = {equip:EQUIP[0], part:'P01'};
 
 const pad = n => String(n).padStart(2,'0');
@@ -389,12 +405,12 @@ async function reload(){
   const res = await Promise.all([
     q('parts', '*', 'id'), q('stock_levels'), q('usage_logs', '*', 'created_at'),
     q('requisitions', '*, requisition_items(*)', 'created_at'), q('shipments', '*', 'created_at'),
-    q('procurements', '*', 'created_at'), q('status_history', '*', 'created_at'), q('equipment', '*', 'id'),
+    q('procurements', '*', 'created_at'), q('status_history', '*', 'created_at'), q('equipment', '*', 'id'), q('notices', '*', 'created_at'),
     me.role === 'admin' ? q('profiles', 'id,email,role,created_at', 'created_at') : Promise.resolve({data:[]})
   ]);
   const bad = res.find(r => r.error);
   if (bad) throw bad.error;
-  const [parts, stock, usage, reqs, ships, procs, logs, equip, profs] = res.map(r => r.data);
+  const [parts, stock, usage, reqs, ships, procs, logs, equip, notices, profs] = res.map(r => r.data);
   const st = (u, p) => stock.find(s => s.unit_id === u && s.part_id === p) || {};
   S = {
     equipment: equip.map(e => ({id:e.id, nsn:e.nsn, name:e.name, active:e.active})),
@@ -406,7 +422,10 @@ async function reload(){
       lines:r.requisition_items.sort((a, b) => a.id - b.id).map(i => ({partId:i.part_id, qty:i.qty, issued:i.issued, backorder:i.backorder, received:i.received}))})),
     shipments: ships.map(s => ({id:s.id, t:fmt(s.created_at), reqId:s.requisition_id, partId:s.part_id, qty:s.qty, status:s.status})),
     procs: procs.map(x => ({id:x.id, t:fmt(x.created_at), partId:x.part_id, qty:x.qty, status:x.status, refs:x.requisition_refs || []})),
-    log: logs.map(l => ({t:fmt(l.created_at), who:l.actor, msg:l.message}))
+    log: logs.map(l => ({t:fmt(l.created_at), who:l.actor, msg:l.message})),
+    // 중요 공지 먼저, 그다음 최신순
+    notices: notices.slice().reverse().sort((a, b) => b.pinned - a.pinned).map(n => ({id:n.id, title:n.title, body:n.body,
+      pinned:n.pinned, author:n.author || '', t:fmt(n.created_at), edited:n.updated_at > n.created_at ? fmt(n.updated_at) : ''}))
   };
   users = profs;
   if (!S.parts.some(p => p.id === form.part) && S.parts[0]) form.part = S.parts[0].id;
@@ -630,6 +649,32 @@ function panelProc(){
   </section>`;
 }
 
+function panelNotice(){
+  const admin = !!me.id && me.role === 'admin';
+  const ed = S.notices.find(n => n.id === noticeEdit) || {title:'', body:'', pinned:false};
+  const items = S.notices.map(n => `<article class="notice${n.pinned ? ' pin' : ''}">
+      <div class="notice-h"><h3>${n.pinned ? chip('중요', 'crit') + ' ' : ''}${esc(n.title)}</h3>
+        <span class="mono">${n.t}${n.edited ? ` · 수정 ${n.edited}` : ''} · ${esc(n.author)}</span></div>
+      ${n.body ? `<p class="notice-b">${esc(n.body)}</p>` : ''}
+      ${admin ? `<div class="actions"><button class="btn sm" type="button" data-act="nedit" data-id="${n.id}">수정</button><button class="btn sm" type="button" data-act="ndel" data-id="${n.id}">삭제</button></div>` : ''}
+    </article>`).join('');
+  const editor = admin ? `<section class="card">
+      <div class="head"><div><h2>${noticeEdit ? '공지 수정' : '공지 작성'}</h2><p class="hint">'중요'에 체크하면 목록 맨 위에 고정됩니다.</p></div></div>
+      ${msg('notice')}
+      <div class="frm">
+        <label class="row"><span>제목</span><input type="text" id="n-title" value="${esc(ed.title)}" placeholder="공지 제목"></label>
+        <label class="row"><span>내용</span><textarea id="n-body" rows="6" placeholder="공지 내용">${esc(ed.body)}</textarea></label>
+        <div class="row"><span>중요</span><label class="chk pad"><input type="checkbox" id="n-pin"${ed.pinned ? ' checked' : ''}> 목록 맨 위에 고정</label></div>
+      </div>
+      <div class="frm-act actions">${noticeEdit ? '<button class="btn" type="button" data-act="ncancel">취소</button>' : ''}<button class="btn primary" type="button" data-act="nsave">${noticeEdit ? '수정 저장' : '공지 등록'}</button></div>
+    </section>` : '';
+  return `${editor}<section class="card">
+      <div class="head"><div><h2>공지사항</h2><p class="hint">${admin ? '공지를 수정하거나 삭제하려면 각 공지의 버튼을 누르세요.' : '공지는 관리자가 로그인해서 작성합니다.'}</p></div></div>
+      ${admin ? '' : msg('notice')}
+      ${items ? `<div class="notices">${items}</div>` : '<p class="empty">등록된 공지가 없습니다.</p>'}
+    </section>`;
+}
+
 function panelLog(){
   return `<section class="card">
     <div class="head"><div><h2>처리 이력</h2><p class="hint">누가 언제 무엇을 했는지 최신순으로 보여줍니다. 서버에 기록되어 지울 수 없습니다.</p></div></div>
@@ -658,12 +703,12 @@ function panelAccount(){
 
 function render(){
   renderWho(); renderFlow(); renderTabs();
-  const P = {unit:panelUnit, bn:panelBn, central:panelCentral, proc:panelProc, log:panelLog, users:panelUsers, account:panelAccount};
+  const P = {notice:panelNotice, unit:panelUnit, bn:panelBn, central:panelCentral, proc:panelProc, log:panelLog, users:panelUsers, account:panelAccount};
   document.getElementById('panel').innerHTML = P[tab]();
 }
 
 function go(t, stage){
-  tab = t; flash = {};
+  tab = t; flash = {}; noticeEdit = null;
   stageSel = stage != null ? Number(stage) : (STAGE_OF_TAB[t] ?? -1);
   try { history.replaceState(null, '', '#' + t); } catch (e) {}
   render();
@@ -690,6 +735,18 @@ document.addEventListener('click', e => {
       p_lead:parseInt(v('plead'), 10), p_monthly:parseInt(v('pmon'), 10)}, 'parts', nsn => act === 'addpart'
       ? {c:'ok', t:`${nsn} 품목을 추가했습니다. 물류대대 화면에서 정수와 재청구점을 정하세요.`}
       : {c:'ok', t:`${nsn} 품목을 저장했습니다.`});
+  }
+  if (act === 'nedit') { noticeEdit = Number(id); flash = {}; render(); document.getElementById('n-title').focus(); return; }
+  if (act === 'ncancel') { noticeEdit = null; flash = {}; render(); return; }
+  if (act === 'nsave') {
+    const editing = noticeEdit;
+    call('save_notice', {p_id:editing, p_title:document.getElementById('n-title').value, p_body:document.getElementById('n-body').value,
+      p_pinned:document.getElementById('n-pin').checked}, 'notice', () => { noticeEdit = null; return {c:'ok', t:editing ? '공지를 수정했습니다.' : '공지를 등록했습니다.'}; });
+  }
+  if (act === 'ndel') {
+    const n = S.notices.find(x => x.id === Number(id));
+    if (n && confirm(`'${n.title}' 공지를 삭제할까요? 삭제하면 되돌릴 수 없습니다.`))
+      call('delete_notice', {p_id:Number(id)}, 'notice', () => { if (noticeEdit === n.id) noticeEdit = null; return {c:'ok', t:'공지를 삭제했습니다.'}; });
   }
   if (act === 'saveeq' || act === 'addeq') {
     const k = act === 'addeq' ? 'new' : id;
