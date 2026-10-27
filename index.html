@@ -3,16 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
-</head>
-<body>
 <title>수리부속 순환보급체계</title>
-<meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;700;900&display=swap">
 <style>
-/* Layout: 얇은 유틸 바 → 흰 GNB(워드마크) → 좌측 메뉴(LNB) + 본문(제목·경로 → 단계 박스 → 안내 박스 → 업무 섹션). 무채색 + 남색 강조 */
+/* Layout: 얇은 유틸 바 → 흰 GNB(워드마크·사용자) → 좌측 메뉴(LNB) + 본문(제목·경로 → 단계 박스 → 안내 박스 → 업무 섹션). 무채색 + 남색 강조 */
 :root{
   --bg:#ffffff; --surface:#ffffff; --th:#f6f7f8; --note:#f2f3f4; --ink:#05141f; --muted:#6b737a; --line:#dcdfe2; --line-strong:#05141f;
   --solid:#05141f; --solid-ink:#ffffff; --util:#05141f; --util-ink:#c9d0d6;
@@ -20,6 +16,7 @@
   --crit:#c0221a; --crit-soft:#fde6e4; --info:#1f56a8; --info-soft:#e4edfa;
   --font-body:"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
   --font-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
@@ -38,17 +35,21 @@
   color-scheme:dark;
 }
 *{box-sizing:border-box}
-body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.6;letter-spacing:-.01em}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.6;letter-spacing:-.01em}
+body.busy{cursor:progress}
 .in{max-width:1240px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 
 /* 유틸 바 · GNB */
 .util{background:var(--util);color:var(--util-ink);font-size:12px}
 .util .in{display:flex;gap:24px;padding-block:8px;flex-wrap:wrap}
 .gnb{border-bottom:1px solid var(--line)}
-.gnb .in{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-block:22px;flex-wrap:wrap}
+.gnb .in{display:flex;align-items:center;justify-content:space-between;gap:12px 16px;padding-block:22px;flex-wrap:wrap}
 .mark{display:flex;align-items:baseline;gap:10px;white-space:nowrap}
 .mark b{font-weight:900;font-size:24px;letter-spacing:.06em}
 .mark span{font-weight:500;font-size:20px}
+.who{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px}
+.who .email{color:var(--muted)}
 
 /* 본문 골격 */
 .shell{display:grid;grid-template-columns:190px minmax(0,1fr);gap:48px;padding-block:44px 72px}
@@ -64,7 +65,7 @@ h1{font-size:clamp(24px,3vw,30px);font-weight:700;margin:0;letter-spacing:-.03em
 .crumb{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--muted);flex-wrap:wrap}
 .crumb span+span::before{content:"›";margin-right:8px}
 
-/* 단계 박스 (분할 탭 형태) */
+/* 단계 박스 */
 .flow{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border:1px solid var(--line-strong)}
 .stage{appearance:none;font:inherit;color:var(--ink);background:var(--surface);text-align:center;cursor:pointer;display:grid;gap:1px;justify-items:center;
   border:0;border-left:1px solid var(--line);padding:14px 8px 16px}
@@ -126,17 +127,19 @@ th.num{text-align:right}
 .btn.primary{background:var(--solid);border-color:var(--solid);color:var(--solid-ink)}
 .btn.primary:hover{opacity:.88;background:var(--solid)}
 .btn.sm{padding:6px 14px;font-size:13px}
+.btn[disabled],.cell-in[disabled]{opacity:.4;cursor:not-allowed}
 .btn:focus-visible,.lnb-i:focus-visible,.stage:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--info);outline-offset:2px}
 
-/* 입력 표 (라벨 칸 + 입력 칸) */
+/* 입력 표 */
 .frm{border-top:2px solid var(--line-strong)}
 .row{display:grid;grid-template-columns:130px minmax(0,1fr);border-bottom:1px solid var(--line)}
 .row > span{background:var(--th);padding:12px 16px;font-size:13.5px;font-weight:500;display:flex;align-items:center}
 .row > select,.row > input{margin:8px 12px}
-select,input[type="text"],input[type="number"]{font:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:0;padding:8px 10px;width:auto;min-width:0}
-.row > select,.row > input[type="text"]{width:calc(100% - 24px)}
+select,input[type="text"],input[type="number"],input[type="email"]{font:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:0;padding:8px 10px;width:auto;min-width:0}
+.row > select,.row > input[type="text"],.row > input[type="email"]{width:calc(100% - 24px)}
 .row > input[type="number"]{width:110px}
 .frm-act{display:flex;justify-content:flex-end;margin-top:16px}
+fieldset{border:0;margin:0;padding:0;min-width:0}
 
 .msg{font-size:13.5px;padding:12px 16px;margin:0}
 .msg.ok{background:var(--ok-soft);color:var(--ok)}
@@ -156,6 +159,10 @@ select,input[type="text"],input[type="number"]{font:inherit;font-size:14px;color
 
 .log{list-style:none;margin:0;padding:0;display:grid;border-top:2px solid var(--line-strong)}
 .log li{display:grid;grid-template-columns:96px 84px minmax(0,1fr);gap:12px;padding:11px 4px;border-bottom:1px solid var(--line);font-size:14px;align-items:baseline}
+
+/* 로그인 · 승인 대기 */
+.gate{max-width:560px;margin:0 auto;padding-block:64px 96px;display:grid;gap:20px}
+.gate h1{font-size:26px}
 
 @media (max-width:900px){
   .shell{grid-template-columns:1fr;gap:24px;padding-block:20px 56px}
@@ -178,20 +185,24 @@ select,input[type="text"],input[type="number"]{font:inherit;font-size:14px;color
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
-
+</head>
+<body>
 <div class="util"><div class="in"><span>기획 검증용 프로토타입</span><span>모든 부대·품목·수량은 가상 데이터</span></div></div>
 <header class="gnb">
   <div class="in">
     <div class="mark"><b>PARTS</b><span>정비보급센터</span></div>
-    <button class="btn sm" data-act="reset" type="button">처음 상태로</button>
+    <div class="who" id="who"></div>
   </div>
 </header>
-<div class="in">
+
+<div class="in" id="gateWrap"><div class="gate" id="gate"><p class="hint">불러오는 중…</p></div></div>
+
+<div class="in" id="appWrap" hidden>
   <div class="shell">
     <nav class="lnb" id="tabs" aria-label="역할 메뉴"></nav>
     <div class="content">
       <div class="ptop">
-        <h1 id="ptitle">정비부대</h1>
+        <h1 id="ptitle">정비 사용 등록</h1>
         <div class="crumb" id="crumb"></div>
       </div>
       <nav class="flow" id="flow" aria-label="보급 흐름 단계"></nav>
@@ -200,7 +211,7 @@ select,input[type="text"],input[type="number"]{font:inherit;font-size:14px;color
         <ul>
           <li>정비부대가 부속을 쓰면 물류대대 재고가 줄고, 정수에 못 미치는 만큼 중앙 물류에 자동 청구됩니다.</li>
           <li>중앙에 없는 부속은 조달로 넘어가고, 입고되면 밀린 청구에 자동 배분됩니다.</li>
-          <li>위 단계 박스나 왼쪽 메뉴를 눌러 흐름을 따라가 보세요. 진하게 표시된 단계는 처리할 일이 있다는 뜻입니다.</li>
+          <li>데이터는 서버(Supabase)에 저장되어 모든 사용자가 같은 내용을 봅니다. 각 화면의 작업은 해당 역할만 할 수 있습니다.</li>
         </ul>
       </div>
       <main class="panel" id="panel"></main>
@@ -208,71 +219,36 @@ select,input[type="text"],input[type="number"]{font:inherit;font-size:14px;color
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
 <script>
-const KEY = 'spare-flow-v1';
+const SUPABASE_URL = 'https://bcadjhiyszzmaguwlsaw.supabase.co';
+// 브라우저용 공개 키입니다. 데이터는 로그인 + 역할(RLS)로 보호됩니다.
+const SUPABASE_KEY = 'sb_publishable_VzOt6lFgvAhQbHId5B7rzA_lMzN2v2Y';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 const EQUIP = ['전술차량 A형 (가상-101)', '전술차량 B형 (가상-207)', '발전기 10kW (가상-G03)', '지게차 3톤 (가상-F12)'];
+const ROLE_LABEL = {pending:'승인 대기', unit:'정비부대', bn:'중간 물류대대', central:'중앙 물류', proc:'조달', admin:'관리자'};
 const TABS = [
   {id:'unit', label:'정비부대', title:'정비 사용 등록', icon:'M14.7 6.3a4 4 0 0 0-5.2 5.2L4 17v3h3l5.5-5.5a4 4 0 0 0 5.2-5.2l-2.5 2.5-2.2-.5-.5-2.2z'},
   {id:'bn', label:'중간 물류대대', title:'재고 · 정수 관리', icon:'M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z M3 7.5l9 4.5 9-4.5 M12 12v9'},
   {id:'central', label:'중앙 물류', title:'중앙 출고 처리', icon:'M4 21V8l8-5 8 5v13 M9 21v-6h6v6 M9 10h.01 M15 10h.01'},
   {id:'proc', label:'조달', title:'조달 요청 관리', icon:'M3 4h2.5l2.2 11h10.6L20.5 7H6.4 M9.5 20h.01 M17 20h.01'},
-  {id:'log', label:'처리 이력', title:'처리 이력', icon:'M9 6h11 M9 12h11 M9 18h11 M4.5 6h.01 M4.5 12h.01 M4.5 18h.01'}
+  {id:'log', label:'처리 이력', title:'처리 이력', icon:'M9 6h11 M9 12h11 M9 18h11 M4.5 6h.01 M4.5 12h.01 M4.5 18h.01'},
+  {id:'users', label:'사용자 관리', title:'사용자 관리', admin:true, icon:'M16 19v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 17.5V19 M10 10.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6 M20 19v-1.5a3.5 3.5 0 0 0-2.5-3.35 M15.5 4.6a3 3 0 0 1 0 5.8'}
 ];
 
-function seed(){
-  const P = (id,nsn,name,unit,lead,monthly,onHand,pending,auth,rop,central) => ({id,nsn,name,unit,lead,monthly,onHand,pending,auth,rop,central});
-  return {
-    seq:{req:1, shp:1, prc:1, use:3},
-    parts:[
-      P('P01','2940-00-000-0101','엔진오일 필터','EA',14,18,9,0,30,12,40),
-      P('P02','2910-00-000-0102','연료 필터','EA',30,9,10,0,24,10,0),
-      P('P03','2530-00-000-0103','브레이크 패드','SET',21,6,4,0,16,6,5),
-      P('P04','6140-00-000-0104','배터리 12V 100Ah','EA',10,4,3,6,10,4,12),
-      P('P05','2610-00-000-0105','타이어 335/80R20','EA',45,5,20,0,20,8,30),
-      P('P06','3030-00-000-0106','팬벨트','EA',14,7,11,0,18,6,25),
-      P('P07','4720-00-000-0107','유압 호스 1/2"','EA',60,3,3,8,12,4,0),
-      P('P08','6220-00-000-0108','전조등 어셈블리','EA',20,4,9,0,14,5,8)
-    ],
-    usage:[
-      {id:'USE-001', t:'10-24 09:12', equip:EQUIP[0], partId:'P01', qty:4, note:'엔진오일 교환'},
-      {id:'USE-002', t:'10-24 15:40', equip:EQUIP[2], partId:'P02', qty:2, note:'연료계통 점검'},
-      {id:'USE-003', t:'10-25 10:05', equip:EQUIP[1], partId:'P03', qty:2, note:'제동장치 정비'}
-    ],
-    reqs:[
-      {id:'REQ-001', t:'10-23 06:00', type:'자동', status:'처리중', lines:[
-        {partId:'P04', qty:6, issued:6, backorder:0, received:0},
-        {partId:'P07', qty:8, issued:0, backorder:8, received:0}
-      ]}
-    ],
-    shipments:[{id:'SHP-001', t:'10-24 13:30', reqId:'REQ-001', partId:'P04', qty:6, status:'수송중'}],
-    procs:[{id:'PRC-001', t:'10-24 13:30', partId:'P07', qty:8, status:'계약진행', refs:['REQ-001']}],
-    log:[
-      {t:'10-23 06:00', who:'물류대대', msg:'자동 청구 REQ-001 생성: 배터리 12V 100Ah 6EA, 유압 호스 1/2" 8EA'},
-      {t:'10-23 08:20', who:'물류대대', msg:'REQ-001 확인 후 중앙 물류로 전송'},
-      {t:'10-24 09:12', who:'정비부대', msg:'전술차량 A형 정비: 엔진오일 필터 4EA 불출'},
-      {t:'10-24 13:30', who:'중앙 물류', msg:'REQ-001 출고 처리: 배터리 6EA 출고(SHP-001), 유압 호스 8EA 미결 → 조달요청 PRC-001'},
-      {t:'10-24 15:40', who:'정비부대', msg:'발전기 10kW 정비: 연료 필터 2EA 불출'},
-      {t:'10-24 16:00', who:'조달', msg:'PRC-001 계약 진행'},
-      {t:'10-25 10:05', who:'정비부대', msg:'전술차량 B형 정비: 브레이크 패드 2SET 불출'}
-    ]
-  };
-}
-
-let S, tab = 'unit', flash = {}, form = {equip:EQUIP[0], part:'P01'};
-function load(){
-  try { const raw = localStorage.getItem(KEY); if (raw) { S = JSON.parse(raw); return; } } catch(e) {}
-  S = seed();
-}
-function save(){ try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e) {} }
+let S = null, me = null, users = [], tab = 'unit', flash = {}, gateMsg = null, busy = false, startedFor;
+let form = {equip:EQUIP[0], part:'P01'};
 
 const pad = n => String(n).padStart(2,'0');
-const now = () => { const d = new Date(); return `${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const fmt = ts => { const d = new Date(ts); return `${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const part = id => S.parts.find(p => p.id === id);
-const docNo = (k, prefix) => `${prefix}-${String(++S.seq[k]).padStart(3,'0')}`;
-const log = (who, msg) => S.log.push({t:now(), who, msg});
 const need = p => p.onHand + p.pending <= p.rop;
 const recommend = p => Math.ceil(p.monthly / 30 * (p.lead + 15));
+const can = role => me && (me.role === 'admin' || me.role === role);
+const lock = role => can(role) ? '' : ` disabled title="${ROLE_LABEL[role]} 역할만 할 수 있습니다"`;
+const roNote = role => can(role) ? '' : `<p class="msg info">읽기 전용입니다. 이 화면의 작업은 ${ROLE_LABEL[role]} 역할만 할 수 있습니다. (내 역할: ${ROLE_LABEL[me.role]})</p>`;
 
 function stockState(p){
   if (p.onHand === 0) return {label:'결품', c:'crit'};
@@ -284,126 +260,92 @@ const REQ_C = {'확인대기':'warn','중앙접수':'info','처리중':'info','�
 const PRC_C = {'요청':'warn','계약진행':'info','입고완료':'ok'};
 const chip = (label, c) => `<span class="chip c-${c}">${label}</span>`;
 
-/* ---------- 업무 로직 ---------- */
-function useParts(equip, partId, qty, note){
-  const p = part(partId);
-  if (!(qty > 0)) { flash.unit = {c:'crit', t:'수량을 1 이상으로 입력하세요.'}; return; }
-  if (qty > p.onHand) {
-    flash.unit = {c:'crit', t:`대대 보유량(${p.onHand}${p.unit})보다 많이 불출할 수 없습니다. 물류대대에 긴급 청구가 필요합니다.`};
-    return;
-  }
-  const wasNeed = need(p);
-  p.onHand -= qty;
-  S.usage.push({id:docNo('use','USE'), t:now(), equip, partId, qty, note});
-  log('정비부대', `${equip.split(' (')[0]} 정비: ${p.name} ${qty}${p.unit} 불출${note ? ` (${note})` : ''}`);
-  let t = `${p.name} ${qty}${p.unit} 불출 완료. 대대 보유 ${p.onHand}${p.unit}.`;
-  if (!wasNeed && need(p)) t += ` 재청구점(${p.rop}) 이하가 되어 다음 자동 청구에 포함됩니다.`;
-  flash.unit = {c: need(p) ? 'warn' : 'ok', t};
+/* ---------- 로그인 ---------- */
+async function start(session){
+  const uid = session?.user?.id || null;
+  if (uid === startedFor) return;
+  startedFor = uid;
+  if (!session) { me = null; S = null; showGate(loginView()); return; }
+  const { data } = await sb.from('profiles').select('id,email,role').eq('id', uid).maybeSingle();
+  me = data || {id:uid, email:session.user.email, role:'pending'};
+  if (me.role === 'pending') { showGate(pendingView()); return; }
+  try { await reload(); } catch (e) { showGate(`<p class="msg crit">데이터를 불러오지 못했습니다: ${esc(e.message)}</p>`); }
 }
 
-function autoReq(){
-  const lines = S.parts.filter(need)
-    .map(p => ({partId:p.id, qty:p.auth - (p.onHand + p.pending), issued:0, backorder:0, received:0}))
-    .filter(l => l.qty > 0);
-  if (!lines.length) { flash.bn = {c:'info', t:'모든 품목이 재청구점보다 많아 청구할 품목이 없습니다.'}; return; }
-  lines.forEach(l => part(l.partId).pending += l.qty);
-  const id = docNo('req','REQ');
-  S.reqs.push({id, t:now(), type:'자동', status:'확인대기', lines});
-  log('물류대대', `자동 청구 ${id} 생성: ${lines.map(l => `${part(l.partId).name} ${l.qty}${part(l.partId).unit}`).join(', ')}`);
-  flash.bn = {c:'ok', t:`${id} 생성 (${lines.length}개 품목). 아래 '확인 대기 청구'에서 확인하면 중앙 물류로 전송됩니다.`};
+function showGate(html){
+  document.getElementById('appWrap').hidden = true;
+  document.getElementById('gateWrap').hidden = false;
+  document.getElementById('gate').innerHTML = html;
+  renderWho();
 }
 
-function confirmReq(id){
-  const r = S.reqs.find(x => x.id === id);
-  r.status = '중앙접수';
-  log('물류대대', `${id} 확인 후 중앙 물류로 전송`);
-  flash.bn = {c:'ok', t:`${id}를 중앙 물류로 보냈습니다. '중앙 물류' 메뉴에서 출고 처리할 수 있습니다.`};
+function loginView(){
+  return `<h1>로그인</h1>
+    <p class="hint">이메일 주소를 입력하면 로그인 링크를 보내드립니다. 비밀번호는 필요 없습니다. 메일의 링크를 누르면 이 화면으로 돌아와 로그인됩니다.</p>
+    <form id="loginForm">
+      <div class="frm"><label class="row"><span>이메일</span><input id="f-email" type="email" required autocomplete="email" placeholder="name@example.com"></label></div>
+      <div class="frm-act"><button class="btn primary" type="submit">로그인 링크 받기</button></div>
+    </form>
+    ${gateMsg ? `<p class="msg ${gateMsg.c}" role="status">${esc(gateMsg.t)}</p>` : ''}
+    <p class="hint">처음 로그인하면 '승인 대기' 상태가 됩니다. 관리자가 역할을 정해 주면 사용할 수 있습니다.</p>`;
 }
 
-function cancelReq(id){
-  const r = S.reqs.find(x => x.id === id);
-  r.status = '취소';
-  r.lines.forEach(l => { const p = part(l.partId); p.pending = Math.max(0, p.pending - l.qty); });
-  log('물류대대', `${id} 취소 (청구중 수량 원복)`);
-  flash.bn = {c:'info', t:`${id}를 취소했습니다. 청구중 수량이 원래대로 돌아갔습니다.`};
+function pendingView(){
+  return `<h1>승인 대기 중</h1>
+    <p class="msg info">${esc(me.email)} 계정으로 로그인했습니다. 관리자가 역할(정비부대, 물류대대, 중앙 물류, 조달)을 정해 주면 화면이 열립니다.</p>
+    <p class="hint">역할을 받은 뒤에는 이 페이지를 새로 고치면 됩니다.</p>
+    <div class="frm-act"><button class="btn" type="button" data-act="logout">로그아웃</button></div>`;
 }
 
-function ship(reqId, partId, qty){
-  const id = docNo('shp','SHP');
-  S.shipments.push({id, t:now(), reqId, partId, qty, status:'수송중'});
-  return id;
+function renderWho(){
+  const el = document.getElementById('who');
+  if (!me) { el.innerHTML = ''; return; }
+  el.innerHTML = `<span class="email">${esc(me.email || '')}</span>${chip(ROLE_LABEL[me.role] || me.role, me.role === 'pending' ? 'warn' : 'mute')}
+    ${me.role === 'admin' ? '<button class="btn sm" type="button" data-act="reset">처음 상태로</button>' : ''}
+    <button class="btn sm" type="button" data-act="logout">로그아웃</button>`;
 }
 
-function addProc(partId, qty, reqId){
-  const open = S.procs.find(x => x.partId === partId && x.status === '요청');
-  if (open) { open.qty += qty; if (!open.refs.includes(reqId)) open.refs.push(reqId); return open.id; }
-  const id = docNo('prc','PRC');
-  S.procs.push({id, t:now(), partId, qty, status:'요청', refs:[reqId]});
-  return id;
+/* ---------- 데이터 ---------- */
+async function reload(){
+  const q = (t, sel = '*', order) => { let x = sb.from(t).select(sel); if (order) x = x.order(order, {ascending:true}); return x; };
+  const res = await Promise.all([
+    q('parts', '*', 'id'), q('stock_levels'), q('usage_logs', '*', 'created_at'),
+    q('requisitions', '*, requisition_items(*)', 'created_at'), q('shipments', '*', 'created_at'),
+    q('procurements', '*', 'created_at'), q('status_history', '*', 'created_at'),
+    me.role === 'admin' ? q('profiles', 'id,email,role,created_at', 'created_at') : Promise.resolve({data:[]})
+  ]);
+  const bad = res.find(r => r.error);
+  if (bad) throw bad.error;
+  const [parts, stock, usage, reqs, ships, procs, logs, profs] = res.map(r => r.data);
+  const st = (u, p) => stock.find(s => s.unit_id === u && s.part_id === p) || {};
+  S = {
+    parts: parts.map(p => { const b = st('BN', p.id), c = st('CENTRAL', p.id);
+      return {id:p.id, nsn:p.nsn, name:p.name, unit:p.unit, lead:p.lead_days, monthly:p.monthly_use,
+              onHand:b.on_hand ?? 0, pending:b.pending ?? 0, auth:b.authorized_qty ?? 0, rop:b.reorder_point ?? 0, central:c.on_hand ?? 0}; }),
+    usage: usage.map(u => ({id:u.id, t:fmt(u.created_at), equip:u.equipment, partId:u.part_id, qty:u.qty, note:u.note || ''})),
+    reqs: reqs.map(r => ({id:r.id, t:fmt(r.created_at), type:r.type, status:r.status,
+      lines:r.requisition_items.sort((a, b) => a.id - b.id).map(i => ({partId:i.part_id, qty:i.qty, issued:i.issued, backorder:i.backorder, received:i.received}))})),
+    shipments: ships.map(s => ({id:s.id, t:fmt(s.created_at), reqId:s.requisition_id, partId:s.part_id, qty:s.qty, status:s.status})),
+    procs: procs.map(x => ({id:x.id, t:fmt(x.created_at), partId:x.part_id, qty:x.qty, status:x.status, refs:x.requisition_refs || []})),
+    log: logs.map(l => ({t:fmt(l.created_at), who:l.actor, msg:l.message}))
+  };
+  users = profs;
+  if (!S.parts.some(p => p.id === form.part) && S.parts[0]) form.part = S.parts[0].id;
+  document.getElementById('gateWrap').hidden = true;
+  document.getElementById('appWrap').hidden = false;
+  render();
 }
 
-function processReq(id){
-  const r = S.reqs.find(x => x.id === id);
-  const out = [];
-  r.lines.forEach(l => {
-    const p = part(l.partId);
-    const give = Math.min(p.central, l.qty);
-    p.central -= give;
-    l.issued = give;
-    l.backorder = l.qty - give;
-    if (give > 0) out.push(`${p.name} ${give}${p.unit} 출고(${ship(r.id, p.id, give)})`);
-    if (l.backorder > 0) out.push(`${p.name} ${l.backorder}${p.unit} 미결 → 조달요청 ${addProc(p.id, l.backorder, r.id)}`);
-  });
-  r.status = '처리중';
-  log('중앙 물류', `${id} 출고 처리: ${out.join(', ')}`);
-  const bo = r.lines.filter(l => l.backorder > 0).length;
-  flash.central = {c: bo ? 'warn' : 'ok', t:`${id} 처리 완료. 출고 ${r.lines.filter(l => l.issued > 0).length}건, 미결 ${bo}건${bo ? ' (조달 메뉴로 넘어갔습니다)' : ''}.`};
-}
-
-function allocate(partId){
-  const p = part(partId);
-  const out = [];
-  S.reqs.filter(r => r.status === '처리중').forEach(r => {
-    r.lines.filter(l => l.partId === partId && l.backorder > 0).forEach(l => {
-      const give = Math.min(p.central, l.backorder);
-      if (give <= 0) return;
-      p.central -= give; l.backorder -= give; l.issued += give;
-      out.push(`${r.id}에 ${give}${p.unit} 출고(${ship(r.id, partId, give)})`);
-    });
-  });
-  if (out.length) log('중앙 물류', `${p.name} 미결 자동 배분: ${out.join(', ')}`);
-  return out.length;
-}
-
-function advanceProc(id){
-  const x = S.procs.find(q => q.id === id);
-  const p = part(x.partId);
-  if (x.status === '요청') {
-    x.status = '계약진행';
-    log('조달', `${id} 계약 진행 (${p.name} ${x.qty}${p.unit})`);
-    flash.proc = {c:'info', t:`${id} 계약을 진행합니다. 납품되면 '입고 처리'를 누르세요.`};
-  } else if (x.status === '계약진행') {
-    x.status = '입고완료';
-    p.central += x.qty;
-    log('조달', `${id} 납품: 중앙 물류 ${p.name} ${x.qty}${p.unit} 입고`);
-    const n = allocate(p.id);
-    flash.proc = {c:'ok', t:`${p.name} ${x.qty}${p.unit} 중앙 입고. 미결 청구 ${n}건에 자동 배분되어 물류대대로 출고되었습니다.`};
-  }
-}
-
-function receive(id){
-  const s = S.shipments.find(x => x.id === id);
-  const p = part(s.partId);
-  const r = S.reqs.find(x => x.id === s.reqId);
-  const l = r.lines.find(x => x.partId === s.partId);
-  s.status = '수령완료';
-  p.onHand += s.qty;
-  p.pending = Math.max(0, p.pending - s.qty);
-  l.received += s.qty;
-  let t = `${p.name} ${s.qty}${p.unit} 수령. 대대 보유 ${p.onHand}${p.unit}.`;
-  if (r.lines.every(x => x.received >= x.qty)) { r.status = '완료'; t += ` ${r.id} 청구가 모두 충족되었습니다.`; }
-  log('물류대대', `${s.id} 수령 확인: ${p.name} ${s.qty}${p.unit} 입고 (${r.id})`);
-  flash.bn = {c:'ok', t};
+async function call(fn, args, key, ok){
+  if (busy) return;
+  busy = true; document.body.classList.add('busy');
+  flash = {};
+  const { data, error } = await sb.rpc(fn, args);
+  if (error) flash[key] = {c:'crit', t:error.message};
+  else if (ok) flash[key] = typeof ok === 'function' ? ok(data) : ok;
+  try { await reload(); }
+  catch (e) { flash[key] = {c:'crit', t:'데이터를 다시 불러오지 못했습니다: ' + e.message}; render(); }
+  busy = false; document.body.classList.remove('busy');
 }
 
 /* ---------- 화면 ---------- */
@@ -424,7 +366,9 @@ function renderFlow(){
 }
 
 function renderTabs(){
-  document.getElementById('tabs').innerHTML = TABS.map(t =>
+  const list = TABS.filter(t => !t.admin || me.role === 'admin');
+  if (!list.some(t => t.id === tab)) tab = 'unit';
+  document.getElementById('tabs').innerHTML = list.map(t =>
     `<button type="button" class="lnb-i" aria-current="${t.id === tab ? 'page' : 'false'}" data-tab="${t.id}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${t.icon}"/></svg><span>${t.label}</span></button>`).join('');
   const cur = TABS.find(t => t.id === tab);
   document.getElementById('ptitle').textContent = cur.title;
@@ -436,7 +380,6 @@ function reqLines(r, mode){
     const p = part(l.partId);
     let right = `${l.qty}${p.unit}`;
     if (mode === 'central') right = `청구 ${l.qty} · 중앙 보유 ${p.central}`;
-    if (mode === 'progress') right = `수령 ${l.received}/${l.qty}${l.backorder ? ` · 미결 ${l.backorder}` : ''}`;
     return `<li><span>${esc(p.name)}</span><span>${right}</span></li>`;
   }).join('')}</ul>`;
 }
@@ -444,38 +387,39 @@ function reqLines(r, mode){
 function panelUnit(){
   const rows = S.usage.slice().reverse().slice(0, 8).map(u => {
     const p = part(u.partId);
-    return `<tr><td class="mono">${u.t}</td><td class="l">${esc(u.equip.split(' (')[0])}</td><td class="l">${esc(p.name)}</td><td class="num">${u.qty}${p.unit}</td><td class="l">${esc(u.note || '')}</td></tr>`;
+    return `<tr><td class="mono">${u.t}</td><td class="l">${esc(u.equip.split(' (')[0])}</td><td class="l">${esc(p.name)}</td><td class="num">${u.qty}${p.unit}</td><td class="l">${esc(u.note)}</td></tr>`;
   }).join('');
   return `<section class="card">
       <div class="head"><div><h2>정비 사용 등록</h2><p class="hint">수리에 쓴 부속을 등록하면 물류대대 재고에서 바로 불출됩니다.</p></div></div>
-      <form id="useForm">
+      ${roNote('unit')}
+      <form id="useForm"><fieldset${can('unit') ? '' : ' disabled'}>
         <div class="frm">
           <label class="row"><span>장비</span><select id="f-equip">${EQUIP.map(e => `<option${e === form.equip ? ' selected' : ''}>${esc(e)}</option>`).join('')}</select></label>
           <label class="row"><span>부속</span><select id="f-part">${S.parts.map(p => `<option value="${p.id}"${p.id === form.part ? ' selected' : ''}>${esc(p.name)} (대대 보유 ${p.onHand}${p.unit})</option>`).join('')}</select></label>
           <label class="row"><span>수량</span><input id="f-qty" type="number" min="1" value="1"></label>
           <label class="row"><span>정비 내용</span><input id="f-note" type="text" placeholder="예: 엔진오일 교환"></label>
         </div>
-        <div class="frm-act"><button class="btn primary" type="submit">사용 등록 · 불출</button></div>
-      </form>
+        <div class="frm-act"><button class="btn primary" type="submit"${lock('unit')}>사용 등록 · 불출</button></div>
+      </fieldset></form>
       ${msg('unit')}
     </section>
     <section class="card">
       <div class="head"><div><h2>최근 사용 내역</h2><p class="hint">이 기록이 쌓여 정수 추천값의 근거가 됩니다.</p></div></div>
-      <div class="tbl"><table><thead><tr><th>일시</th><th>장비</th><th>부속</th><th class="num">수량</th><th>정비 내용</th></tr></thead><tbody>${rows}</tbody></table></div>
+      ${rows ? `<div class="tbl"><table><thead><tr><th>일시</th><th>장비</th><th>부속</th><th class="num">수량</th><th>정비 내용</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<p class="empty">사용 내역이 없습니다.</p>'}
     </section>`;
 }
 
 function panelBn(){
   const inv = S.parts.map(p => {
     const s = stockState(p);
-    const w = v => Math.min(100, v / p.auth * 100);
+    const w = v => p.auth ? Math.min(100, v / p.auth * 100) : 0;
     const mc = s.c === 'crit' ? ' crit' : s.c === 'warn' ? ' warn' : '';
     const rec = recommend(p);
     return `<tr>
       <td class="mono">${p.nsn}</td><td class="l">${esc(p.name)}</td>
       <td class="num">${p.onHand}</td><td class="num">${p.pending || '–'}</td>
-      <td class="num"><input class="cell-in" type="number" min="1" id="auth-${p.id}" data-edit="auth" data-id="${p.id}" value="${p.auth}" aria-label="${esc(p.name)} 정수"></td>
-      <td class="num"><input class="cell-in" type="number" min="0" id="rop-${p.id}" data-edit="rop" data-id="${p.id}" value="${p.rop}" aria-label="${esc(p.name)} 재청구점"></td>
+      <td class="num"><input class="cell-in" type="number" min="1" id="auth-${p.id}" data-edit="${p.id}" value="${p.auth}" aria-label="${esc(p.name)} 정수"${lock('bn')}></td>
+      <td class="num"><input class="cell-in" type="number" min="0" id="rop-${p.id}" data-edit="${p.id}" value="${p.rop}" aria-label="${esc(p.name)} 재청구점"${lock('bn')}></td>
       <td class="num" title="월 소모 ${p.monthly} × (조달 ${p.lead}일 + 안전 15일) ÷ 30">${rec}${rec !== p.auth ? ` <span class="mono">(${rec > p.auth ? '+' : ''}${rec - p.auth})</span>` : ''}</td>
       <td><div class="meter${mc}" title="보유 ${p.onHand} / 정수 ${p.auth}, 표시선 = 재청구점"><i class="p" style="width:${w(p.onHand + p.pending)}%"></i><i style="width:${w(p.onHand)}%"></i><b style="left:${w(p.rop)}%"></b></div></td>
       <td>${chip(s.label, s.c)}</td></tr>`;
@@ -493,8 +437,9 @@ function panelBn(){
   return `<section class="card">
       <div class="head">
         <div><h2>재고 · 정수 현황</h2><p class="hint">정수와 재청구점은 표에서 바로 고칠 수 있습니다. 막대: 진한 색 = 보유, 옅은 색 = 청구중 포함, 세로선 = 재청구점.</p></div>
-        <button class="btn primary" type="button" data-act="auto">자동 청구 실행</button>
+        <button class="btn primary" type="button" data-act="auto"${lock('bn')}>자동 청구 실행</button>
       </div>
+      ${roNote('bn')}
       <div class="formula">조건: 보유 + 청구중 ≤ 재청구점 → 청구량 = 정수 − (보유 + 청구중)</div>
       ${msg('bn')}
       <div class="tbl"><table><thead><tr><th>품번(가상)</th><th>품명</th><th class="num">보유</th><th class="num">청구중</th><th class="num">정수</th><th class="num">재청구점</th><th class="num">추천 정수</th><th>보유율</th><th>상태</th></tr></thead><tbody>${inv}</tbody></table></div>
@@ -505,7 +450,7 @@ function panelBn(){
         ${waiting.length ? `<div class="docs">${waiting.map(r => `<div class="doc">
           <div class="doc-h"><span class="id">${r.id}</span><span class="mono">${r.t} · ${r.type}</span></div>
           ${reqLines(r)}
-          <div class="actions"><button class="btn sm" type="button" data-act="cancel" data-id="${r.id}">취소</button><button class="btn primary sm" type="button" data-act="confirm" data-id="${r.id}">확인 후 중앙 전송</button></div>
+          <div class="actions"><button class="btn sm" type="button" data-act="cancel" data-id="${r.id}"${lock('bn')}>취소</button><button class="btn primary sm" type="button" data-act="confirm" data-id="${r.id}"${lock('bn')}>확인 후 중앙 전송</button></div>
         </div>`).join('')}</div>` : `<p class="empty">대기 중인 청구가 없습니다. 위에서 '자동 청구 실행'을 눌러 보세요.</p>`}
       </section>
       <section class="card">
@@ -513,13 +458,13 @@ function panelBn(){
         ${transit.length ? `<div class="docs">${transit.map(s => { const p = part(s.partId); return `<div class="doc">
           <div class="doc-h"><span class="id">${s.id}</span><span class="mono">${s.t} · ${s.reqId}</span></div>
           <ul><li><span>${esc(p.name)}</span><span>${s.qty}${p.unit}</span></li></ul>
-          <div class="actions"><button class="btn primary sm" type="button" data-act="receive" data-id="${s.id}">수령 확인</button></div>
+          <div class="actions"><button class="btn primary sm" type="button" data-act="receive" data-id="${s.id}"${lock('bn')}>수령 확인</button></div>
         </div>`; }).join('')}</div>` : `<p class="empty">수송 중인 부속이 없습니다.</p>`}
       </section>
     </div>
     <section class="card">
       <div class="head"><div><h2>청구 현황</h2><p class="hint">물류대대가 중앙으로 보낸 모든 청구입니다.</p></div></div>
-      <div class="tbl"><table><thead><tr><th>문서번호</th><th>생성</th><th>구분</th><th>품목</th><th class="num">수령/청구</th><th>상태</th></tr></thead><tbody>${all}</tbody></table></div>
+      ${all ? `<div class="tbl"><table><thead><tr><th>문서번호</th><th>생성</th><th>구분</th><th>품목</th><th class="num">수령/청구</th><th>상태</th></tr></thead><tbody>${all}</tbody></table></div>` : '<p class="empty">청구가 없습니다.</p>'}
     </section>`;
 }
 
@@ -529,14 +474,14 @@ function panelCentral(){
   S.reqs.filter(r => r.status === '처리중').forEach(r => r.lines.filter(l => l.backorder > 0).forEach(l => bo.push({r, l})));
   const stock = S.parts.map(p => `<tr><td class="mono">${p.nsn}</td><td class="l">${esc(p.name)}</td>
     <td class="num">${p.central}${p.unit}</td><td class="num">${p.lead}일</td><td>${p.central === 0 ? chip('결품', 'crit') : chip('보유', 'ok')}</td></tr>`).join('');
-  return `<div class="grid2">
+  return `${roNote('central')}<div class="grid2">
       <section class="card">
         <div class="head"><div><h2>접수된 청구</h2><p class="hint">중앙 재고만큼 출고하고, 모자란 수량은 미결로 남겨 조달요청을 만듭니다.</p></div></div>
         ${msg('central')}
         ${inbox.length ? `<div class="docs">${inbox.map(r => `<div class="doc">
           <div class="doc-h"><span class="id">${r.id}</span><span class="mono">${r.t} · 중간 물류대대</span></div>
           ${reqLines(r, 'central')}
-          <div class="actions"><button class="btn primary sm" type="button" data-act="process" data-id="${r.id}">출고 처리</button></div>
+          <div class="actions"><button class="btn primary sm" type="button" data-act="process" data-id="${r.id}"${lock('central')}>출고 처리</button></div>
         </div>`).join('')}</div>` : `<p class="empty">처리할 청구가 없습니다. 물류대대에서 청구를 확인하면 여기에 나타납니다.</p>`}
       </section>
       <section class="card">
@@ -553,13 +498,14 @@ function panelCentral(){
 function panelProc(){
   const rows = S.procs.slice().reverse().map(x => {
     const p = part(x.partId);
-    const btn = x.status === '요청' ? `<button class="btn sm" type="button" data-act="proc" data-id="${x.id}">계약 진행</button>`
-      : x.status === '계약진행' ? `<button class="btn primary sm" type="button" data-act="proc" data-id="${x.id}">입고 처리</button>` : '';
+    const btn = x.status === '요청' ? `<button class="btn sm" type="button" data-act="proc" data-id="${x.id}"${lock('proc')}>계약 진행</button>`
+      : x.status === '계약진행' ? `<button class="btn primary sm" type="button" data-act="proc" data-id="${x.id}"${lock('proc')}>입고 처리</button>` : '';
     return `<tr><td class="mono">${x.id}</td><td class="mono">${x.t}</td><td class="l">${esc(p.name)}</td><td class="num">${x.qty}${p.unit}</td>
       <td class="mono">${x.refs.join(', ')}</td><td>${chip(x.status, PRC_C[x.status])}</td><td>${btn}</td></tr>`;
   }).join('');
   return `<section class="card">
     <div class="head"><div><h2>조달 요청</h2><p class="hint">같은 품목의 부족분은 '요청' 단계에 있는 동안 한 건으로 합쳐집니다. 입고 처리하면 중앙 재고에 더해지고 미결 청구로 자동 배분됩니다.</p></div></div>
+    ${roNote('proc')}
     ${msg('proc')}
     ${rows ? `<div class="tbl"><table><thead><tr><th>문서번호</th><th>생성</th><th>품명</th><th class="num">수량</th><th>관련 청구</th><th>상태</th><th>처리</th></tr></thead><tbody>${rows}</tbody></table></div>` : `<p class="empty">조달 요청이 없습니다.</p>`}
   </section>`;
@@ -567,20 +513,32 @@ function panelProc(){
 
 function panelLog(){
   return `<section class="card">
-    <div class="head"><div><h2>처리 이력</h2><p class="hint">누가 언제 무엇을 했는지 최신순으로 보여줍니다. 실제 시스템에서는 감사 기록으로 쓰입니다.</p></div></div>
-    <ul class="log">${S.log.slice().reverse().map(x => `<li><span class="mono">${x.t}</span><span>${chip(x.who, 'mute')}</span><span>${esc(x.msg)}</span></li>`).join('')}</ul>
+    <div class="head"><div><h2>처리 이력</h2><p class="hint">누가 언제 무엇을 했는지 최신순으로 보여줍니다. 서버에 기록되어 지울 수 없습니다.</p></div></div>
+    ${S.log.length ? `<ul class="log">${S.log.slice().reverse().map(x => `<li><span class="mono">${x.t}</span><span>${chip(x.who, 'mute')}</span><span>${esc(x.msg)}</span></li>`).join('')}</ul>` : '<p class="empty">이력이 없습니다.</p>'}
+  </section>`;
+}
+
+function panelUsers(){
+  const opts = cur => Object.keys(ROLE_LABEL).map(r => `<option value="${r}"${r === cur ? ' selected' : ''}>${ROLE_LABEL[r]}</option>`).join('');
+  const rows = users.map(u => `<tr><td class="l">${esc(u.email || '')}${u.id === me.id ? ' <span class="mono">(나)</span>' : ''}</td>
+    <td><select data-role="${u.id}" aria-label="${esc(u.email || '')} 역할">${opts(u.role)}</select></td>
+    <td class="mono">${fmt(u.created_at)}</td></tr>`).join('');
+  return `<section class="card">
+    <div class="head"><div><h2>사용자 역할</h2><p class="hint">처음 로그인한 사람은 '승인 대기'입니다. 역할을 고르면 바로 저장됩니다. 역할에 맞는 화면의 작업만 할 수 있고, 관리자는 모든 작업을 할 수 있습니다.</p></div></div>
+    ${msg('users')}
+    <div class="tbl"><table><thead><tr><th>이메일</th><th>역할</th><th>가입</th></tr></thead><tbody>${rows}</tbody></table></div>
   </section>`;
 }
 
 function render(){
-  renderFlow(); renderTabs();
-  const P = {unit:panelUnit, bn:panelBn, central:panelCentral, proc:panelProc, log:panelLog};
+  renderWho(); renderFlow(); renderTabs();
+  const P = {unit:panelUnit, bn:panelBn, central:panelCentral, proc:panelProc, log:panelLog, users:panelUsers};
   document.getElementById('panel').innerHTML = P[tab]();
 }
 
 function go(t){
   tab = t; flash = {};
-  try { history.replaceState(null, '', '#' + t); } catch(e) {}
+  try { history.replaceState(null, '', '#' + t); } catch (e) {}
   render();
 }
 
@@ -589,53 +547,63 @@ document.addEventListener('click', e => {
   const t = e.target.closest('[data-tab]');
   if (t) { go(t.dataset.tab); return; }
   const b = e.target.closest('[data-act]');
-  if (!b) return;
+  if (!b || b.disabled) return;
   const {act, id} = b.dataset;
-  flash = {};
-  if (act === 'reset') { S = seed(); flash.unit = {c:'info', t:'처음 상태로 되돌렸습니다.'}; tab = 'unit'; }
-  if (act === 'auto') autoReq();
-  if (act === 'confirm') confirmReq(id);
-  if (act === 'cancel') cancelReq(id);
-  if (act === 'process') processReq(id);
-  if (act === 'proc') advanceProc(id);
-  if (act === 'receive') receive(id);
-  save(); render();
+  if (act === 'logout') { sb.auth.signOut(); return; }
+  if (act === 'reset') call('reset_demo', {}, 'unit', {c:'info', t:'처음 상태로 되돌렸습니다.'}).then(() => go('unit'));
+  if (act === 'auto') call('auto_requisition', {}, 'bn', rid => rid
+    ? {c:'ok', t:`${rid} 생성. 아래 '확인 대기 청구'에서 확인하면 중앙 물류로 전송됩니다.`}
+    : {c:'info', t:'모든 품목이 재청구점보다 많아 청구할 품목이 없습니다.'});
+  if (act === 'confirm') call('confirm_requisition', {p_id:id}, 'bn', {c:'ok', t:`${id}를 중앙 물류로 보냈습니다. '중앙 물류' 메뉴에서 출고 처리할 수 있습니다.`});
+  if (act === 'cancel') call('cancel_requisition', {p_id:id}, 'bn', {c:'info', t:`${id}를 취소했습니다. 청구중 수량이 원래대로 돌아갔습니다.`});
+  if (act === 'process') call('process_requisition', {p_id:id}, 'central', d =>
+    ({c:d.backorder ? 'warn' : 'ok', t:`${id} 처리 완료. 출고 ${d.issued}건, 미결 ${d.backorder}건${d.backorder ? ' (조달 메뉴로 넘어갔습니다)' : ''}.`}));
+  if (act === 'proc') call('advance_procurement', {p_id:id}, 'proc', d => d.status === '계약진행'
+    ? {c:'info', t:`${id} 계약을 진행합니다. 납품되면 '입고 처리'를 누르세요.`}
+    : {c:'ok', t:`${d.name} ${d.qty}${d.unit} 중앙 입고. 미결 청구 ${d.allocated}건에 자동 배분되어 물류대대로 출고되었습니다.`});
+  if (act === 'receive') call('receive_shipment', {p_id:id}, 'bn', d =>
+    ({c:'ok', t:`${d.name} ${d.qty}${d.unit} 수령. 대대 보유 ${d.on_hand}${d.unit}.${d.done ? ` ${d.req} 청구가 모두 충족되었습니다.` : ''}`}));
 });
 
-document.addEventListener('submit', e => {
-  if (e.target.id !== 'useForm') return;
+document.addEventListener('submit', async e => {
   e.preventDefault();
-  form.equip = document.getElementById('f-equip').value;
-  form.part = document.getElementById('f-part').value;
-  flash = {};
-  useParts(form.equip, form.part, parseInt(document.getElementById('f-qty').value, 10), document.getElementById('f-note').value.trim());
-  save(); render();
+  if (e.target.id === 'loginForm') {
+    const email = document.getElementById('f-email').value.trim();
+    const btn = e.target.querySelector('button'); btn.disabled = true;
+    const { error } = await sb.auth.signInWithOtp({email, options:{emailRedirectTo: location.origin + location.pathname}});
+    gateMsg = error ? {c:'crit', t:'로그인 링크를 보내지 못했습니다: ' + error.message}
+                    : {c:'ok', t:`${email}로 로그인 링크를 보냈습니다. 메일함(스팸함 포함)을 확인해 주세요.`};
+    showGate(loginView());
+    return;
+  }
+  if (e.target.id === 'useForm') {
+    form.equip = document.getElementById('f-equip').value;
+    form.part = document.getElementById('f-part').value;
+    const p = part(form.part), wasNeed = need(p);
+    const qty = parseInt(document.getElementById('f-qty').value, 10);
+    call('use_parts', {p_equipment:form.equip, p_part:form.part, p_qty:qty, p_note:document.getElementById('f-note').value.trim()}, 'unit', d =>
+      ({c:d.need ? 'warn' : 'ok', t:`${p.name} ${qty}${p.unit} 불출 완료. 대대 보유 ${d.on_hand}${p.unit}.${d.need && !wasNeed ? ` 재청구점(${p.rop}) 이하가 되어 다음 자동 청구에 포함됩니다.` : ''}`}));
+  }
 });
 
 document.addEventListener('change', e => {
   const el = e.target;
   if (el.id === 'f-equip') form.equip = el.value;
   if (el.id === 'f-part') form.part = el.value;
-  if (!el.dataset.edit) return;
-  const p = part(el.dataset.id);
-  const v = parseInt(el.value, 10);
-  flash = {};
-  const next = {auth:p.auth, rop:p.rop, [el.dataset.edit]:v};
-  if (!Number.isFinite(v) || v < 0 || next.auth < 1) flash.bn = {c:'crit', t:'0 이상의 숫자를 입력하세요. 정수는 1 이상이어야 합니다.'};
-  else if (next.rop >= next.auth) flash.bn = {c:'crit', t:`재청구점(${next.rop})은 정수(${next.auth})보다 작아야 합니다.`};
-  else {
-    p[el.dataset.edit] = v;
-    log('물류대대', `${p.name} ${el.dataset.edit === 'auth' ? '정수' : '재청구점'} 변경 → ${v}`);
-    flash.bn = {c:'ok', t:`${p.name} ${el.dataset.edit === 'auth' ? '정수' : '재청구점'}를 ${v}(으)로 바꿨습니다.`};
+  if (el.dataset.edit) {
+    const pid = el.dataset.edit;
+    const auth = parseInt(document.getElementById('auth-' + pid).value, 10);
+    const rop = parseInt(document.getElementById('rop-' + pid).value, 10);
+    call('set_stock_level', {p_part:pid, p_auth:auth, p_rop:rop}, 'bn', {c:'ok', t:`${part(pid).name} 정수 ${auth}, 재청구점 ${rop}로 바꿨습니다.`});
   }
-  save(); render();
+  if (el.dataset.role) {
+    call('set_user_role', {p_user:el.dataset.role, p_role:el.value}, 'users', {c:'ok', t:'역할을 바꿨습니다.'});
+  }
 });
 
-load();
 const h = location.hash.slice(1);
 if (TABS.some(t => t.id === h)) tab = h;
-render();
+sb.auth.onAuthStateChange((_event, session) => { setTimeout(() => start(session), 0); });
 </script>
-
 </body>
 </html>
