@@ -230,7 +230,7 @@ fieldset{border:0;margin:0;padding:0;min-width:0}
         <div class="crumb" id="crumb"></div>
       </div>
       <nav class="flow" id="flow" aria-label="보급 흐름 단계"></nav>
-      <div class="note">
+      <div class="note" id="guide">
         <strong>※ 수리부속 순환보급 안내</strong>
         <ul>
           <li>정비부대가 부속을 쓰면 물류대대 재고가 줄고, 정수에 못 미치는 만큼 중앙 물류에 자동 청구됩니다.</li>
@@ -703,6 +703,8 @@ function panelAccount(){
 
 function render(){
   renderWho(); renderFlow(); renderTabs();
+  // 공지사항 메뉴에서는 단계 박스와 안내 문구를 숨기고 공지만 보여준다
+  document.getElementById('flow').hidden = document.getElementById('guide').hidden = tab === 'notice';
   const P = {notice:panelNotice, unit:panelUnit, bn:panelBn, central:panelCentral, proc:panelProc, log:panelLog, users:panelUsers, account:panelAccount};
   document.getElementById('panel').innerHTML = P[tab]();
 }
