@@ -127,6 +127,11 @@ th.num{text-align:right}
 .meter.warn i:not(.p){background:var(--warn)}
 .meter.crit i:not(.p){background:var(--crit)}
 
+.tbl input[type="text"]{width:100%;min-width:110px;padding:5px 8px}
+.tbl input.w-unit{min-width:56px;width:64px}
+.tbl tr.new td{background:var(--th)}
+.chk{display:inline-flex;gap:6px;align-items:center;font-size:13px;white-space:nowrap}
+.tbl input[disabled]{opacity:.55;cursor:not-allowed}
 .cell-in{width:64px;font:inherit;font-size:14px;text-align:right;padding:5px 8px;border:1px solid var(--line);border-radius:0;background:var(--surface);color:var(--ink)}
 
 .btn{font:inherit;font-weight:500;font-size:14px;padding:10px 22px;border-radius:0;border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);cursor:pointer;white-space:nowrap}
@@ -254,13 +259,20 @@ const pad = n => String(n).padStart(2,'0');
 const fmt = ts => { const d = new Date(ts); return `${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const part = id => S.parts.find(p => p.id === id);
-const need = p => p.onHand + p.pending <= p.rop;
+const need = p => p.auth > 0 && p.onHand + p.pending <= p.rop;
 const recommend = p => Math.ceil(p.monthly / 30 * (p.lead + 15));
 const can = role => publicMode || (me && (me.role === 'admin' || me.role === role));
 const lock = role => can(role) ? '' : ` disabled title="${ROLE_LABEL[role]} 역할만 할 수 있습니다"`;
 const roNote = role => can(role) ? '' : `<p class="msg info">읽기 전용입니다. 이 화면의 작업은 ${ROLE_LABEL[role]} 역할만 할 수 있습니다. (내 역할: ${ROLE_LABEL[me.role]})</p>`;
+// 장비·품목·자체 재고 관리는 공개 모드여도 로그인한 정비부대 사용자(또는 관리자)만
+const canManage = () => !!(me && me.id && (me.role === 'admin' || me.role === 'unit'));
+const mlock = () => canManage() ? '' : ' disabled';
+const manageNote = () => canManage() ? '' : `<p class="msg info">${me && me.id
+  ? `정비부대 역할의 사용자만 수정할 수 있습니다. (내 역할: ${ROLE_LABEL[me.role]})`
+  : '보기만 할 수 있습니다. 수정은 로그인한 정비부대 사용자만 할 수 있습니다. 오른쪽 위 로그인 버튼으로 로그인하세요.'}</p>`;
 
 function stockState(p){
+  if (!p.auth) return {label:'정수 미설정', c:'mute'};
   if (p.onHand === 0) return {label:'결품', c:'crit'};
   if (need(p)) return {label:'청구 필요', c:'warn'};
   if (p.onHand <= p.rop) return {label:'보충 대기', c:'info'};
@@ -375,16 +387,17 @@ async function reload(){
   const res = await Promise.all([
     q('parts', '*', 'id'), q('stock_levels'), q('usage_logs', '*', 'created_at'),
     q('requisitions', '*, requisition_items(*)', 'created_at'), q('shipments', '*', 'created_at'),
-    q('procurements', '*', 'created_at'), q('status_history', '*', 'created_at'),
+    q('procurements', '*', 'created_at'), q('status_history', '*', 'created_at'), q('equipment', '*', 'id'),
     me.role === 'admin' ? q('profiles', 'id,email,role,created_at', 'created_at') : Promise.resolve({data:[]})
   ]);
   const bad = res.find(r => r.error);
   if (bad) throw bad.error;
-  const [parts, stock, usage, reqs, ships, procs, logs, profs] = res.map(r => r.data);
+  const [parts, stock, usage, reqs, ships, procs, logs, equip, profs] = res.map(r => r.data);
   const st = (u, p) => stock.find(s => s.unit_id === u && s.part_id === p) || {};
   S = {
-    parts: parts.map(p => { const b = st('BN', p.id), c = st('CENTRAL', p.id);
-      return {id:p.id, nsn:p.nsn, name:p.name, unit:p.unit, lead:p.lead_days, monthly:p.monthly_use,
+    equipment: equip.map(e => ({id:e.id, name:e.name, active:e.active})),
+    parts: parts.map(p => { const b = st('BN', p.id), c = st('CENTRAL', p.id), m = st('MC1', p.id);
+      return {id:p.id, nsn:p.nsn, name:p.name, unit:p.unit, lead:p.lead_days, monthly:p.monthly_use, own:m.on_hand ?? 0,
               onHand:b.on_hand ?? 0, pending:b.pending ?? 0, auth:b.authorized_qty ?? 0, rop:b.reorder_point ?? 0, central:c.on_hand ?? 0}; }),
     usage: usage.map(u => ({id:u.id, t:fmt(u.created_at), equip:u.equipment, partId:u.part_id, qty:u.qty, note:u.note || ''})),
     reqs: reqs.map(r => ({id:r.id, t:fmt(r.created_at), type:r.type, status:r.status,
@@ -450,17 +463,33 @@ function reqLines(r, mode){
 }
 
 function panelUnit(){
+  const eqs = S.equipment.filter(e => e.active);
+  if (!eqs.some(e => e.name === form.equip) && eqs[0]) form.equip = eqs[0].name;
   const rows = S.usage.slice().reverse().slice(0, 8).map(u => {
     const p = part(u.partId);
     return `<tr><td class="mono">${u.t}</td><td class="l">${esc(u.equip.split(' (')[0])}</td><td class="l">${esc(p.name)}</td><td class="num">${u.qty}${p.unit}</td><td class="l">${esc(u.note)}</td></tr>`;
   }).join('');
+  const ownRows = S.parts.map(p => `<tr><td class="mono">${p.nsn}</td><td class="l">${esc(p.name)}</td>
+    <td class="num"><input class="cell-in" type="number" min="0" id="own-${p.id}" data-own="${p.id}" value="${p.own}" aria-label="${esc(p.name)} 자체 보유"${mlock()}> ${p.unit}</td>
+    <td class="num">${p.onHand}${p.unit}</td></tr>`).join('');
+  const partRow = (p, k) => `<tr${k === 'new' ? ' class="new"' : ''}><td class="mono">${k === 'new' ? '새 품목' : p.id}</td>
+    <td><input type="text" id="pnsn-${k}" value="${esc(p.nsn)}" placeholder="0000-00-000-0000" aria-label="품번"${mlock()}></td>
+    <td><input type="text" id="pname-${k}" value="${esc(p.name)}" placeholder="품명" aria-label="품명"${mlock()}></td>
+    <td><input type="text" class="w-unit" id="punit-${k}" value="${esc(p.unit)}" aria-label="단위"${mlock()}></td>
+    <td><input class="cell-in" type="number" min="0" id="plead-${k}" value="${p.lead}" aria-label="조달 소요일"${mlock()}></td>
+    <td><input class="cell-in" type="number" min="0" id="pmon-${k}" value="${p.monthly}" aria-label="월 소모량"${mlock()}></td>
+    <td><button class="btn${k === 'new' ? ' primary' : ''} sm" type="button" data-act="${k === 'new' ? 'addpart' : 'savepart'}" data-id="${k === 'new' ? '' : p.id}"${mlock()}>${k === 'new' ? '추가' : '저장'}</button></td></tr>`;
+  const eqRow = (e, k) => `<tr${k === 'new' ? ' class="new"' : ''}>
+    <td class="l"><input type="text" id="eq-${k}" value="${esc(e.name)}" placeholder="예: 전술차량 C형 (가상-310)" aria-label="장비 이름"${mlock()}></td>
+    <td>${k === 'new' ? '' : `<label class="chk"><input type="checkbox" id="eqa-${k}"${e.active ? ' checked' : ''}${mlock()}> 사용</label>`}</td>
+    <td><button class="btn${k === 'new' ? ' primary' : ''} sm" type="button" data-act="${k === 'new' ? 'addeq' : 'saveeq'}" data-id="${k === 'new' ? '' : e.id}"${mlock()}>${k === 'new' ? '등록' : '저장'}</button></td></tr>`;
   return `<section class="card">
-      <div class="head"><div><h2>정비 사용 등록</h2><p class="hint">수리에 쓴 부속을 등록하면 물류대대 재고에서 바로 불출됩니다.</p></div></div>
+      <div class="head"><div><h2>정비 사용 등록</h2><p class="hint">수리에 쓴 부속을 등록하면 정비부대 자체 재고에서 먼저 쓰고, 모자란 만큼 물류대대 재고에서 불출됩니다.</p></div></div>
       ${roNote('unit')}
       <form id="useForm"><fieldset${can('unit') ? '' : ' disabled'}>
         <div class="frm">
-          <label class="row"><span>장비</span><select id="f-equip">${EQUIP.map(e => `<option${e === form.equip ? ' selected' : ''}>${esc(e)}</option>`).join('')}</select></label>
-          <label class="row"><span>부속</span><select id="f-part">${S.parts.map(p => `<option value="${p.id}"${p.id === form.part ? ' selected' : ''}>${esc(p.name)} (대대 보유 ${p.onHand}${p.unit})</option>`).join('')}</select></label>
+          <label class="row"><span>장비</span><select id="f-equip">${eqs.map(e => `<option${e.name === form.equip ? ' selected' : ''}>${esc(e.name)}</option>`).join('')}</select></label>
+          <label class="row"><span>부속</span><select id="f-part">${S.parts.map(p => `<option value="${p.id}"${p.id === form.part ? ' selected' : ''}>${esc(p.name)} (자체 ${p.own} · 대대 ${p.onHand}${p.unit})</option>`).join('')}</select></label>
           <label class="row"><span>수량</span><input id="f-qty" type="number" min="1" value="1"></label>
           <label class="row"><span>정비 내용</span><input id="f-note" type="text" placeholder="예: 엔진오일 교환"></label>
         </div>
@@ -471,6 +500,28 @@ function panelUnit(){
     <section class="card">
       <div class="head"><div><h2>최근 사용 내역</h2><p class="hint">이 기록이 쌓여 정수 추천값의 근거가 됩니다.</p></div></div>
       ${rows ? `<div class="tbl"><table><thead><tr><th>일시</th><th>장비</th><th>부속</th><th class="num">수량</th><th>정비 내용</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<p class="empty">사용 내역이 없습니다.</p>'}
+    </section>
+    <div class="grid2">
+      <section class="card">
+        <div class="head"><div><h2>정비부대 자체 재고</h2><p class="hint">정비부대가 직접 보관 중인 부속 수량입니다. 숫자를 바꾸면 바로 저장됩니다.</p></div></div>
+        ${manageNote()}
+        ${msg('own')}
+        <div class="tbl"><table><thead><tr><th>품번(가상)</th><th>품명</th><th class="num">자체 보유</th><th class="num">대대 보유</th></tr></thead><tbody>${ownRows}</tbody></table></div>
+      </section>
+      <section class="card">
+        <div class="head"><div><h2>장비 목록</h2><p class="hint">정비 사용 등록에서 고를 장비입니다. '사용'을 끄면 목록에서 빠지고 기록은 남습니다.</p></div></div>
+        ${manageNote()}
+        ${msg('equip')}
+        <div class="tbl"><table><thead><tr><th>장비 이름</th><th>사용</th><th>처리</th></tr></thead>
+          <tbody>${S.equipment.map(e => eqRow(e, e.id)).join('')}${eqRow({name:'', active:true}, 'new')}</tbody></table></div>
+      </section>
+    </div>
+    <section class="card">
+      <div class="head"><div><h2>부속 품목 관리</h2><p class="hint">부속 종류를 추가하거나 고칩니다. 새 품목은 물류대대 화면에서 정수와 재청구점을 정해야 자동 청구 대상이 됩니다.</p></div></div>
+      ${manageNote()}
+      ${msg('parts')}
+      <div class="tbl"><table><thead><tr><th>코드</th><th>품번(가상)</th><th>품명</th><th>단위</th><th class="num">조달 소요일</th><th class="num">월 소모량</th><th>처리</th></tr></thead>
+        <tbody>${S.parts.map(p => partRow(p, p.id)).join('')}${partRow({nsn:'', name:'', unit:'EA', lead:14, monthly:0}, 'new')}</tbody></table></div>
     </section>`;
 }
 
@@ -628,6 +679,20 @@ document.addEventListener('click', e => {
   if (act === 'guest') { enterGuest(); return; }
   if (act === 'account') { go('account'); return; }
   if (act === 'reset') call('reset_demo', {}, 'unit', {c:'info', t:'처음 상태로 되돌렸습니다.'}).then(() => go('unit'));
+  if (act === 'savepart' || act === 'addpart') {
+    const k = act === 'addpart' ? 'new' : id;
+    const v = f => document.getElementById(`${f}-${k}`).value;
+    call('save_part', {p_id:act === 'addpart' ? null : id, p_nsn:v('pnsn'), p_name:v('pname'), p_unit:v('punit'),
+      p_lead:parseInt(v('plead'), 10), p_monthly:parseInt(v('pmon'), 10)}, 'parts', pid => act === 'addpart'
+      ? {c:'ok', t:`${pid} 품목을 추가했습니다. 물류대대 화면에서 정수와 재청구점을 정하세요.`}
+      : {c:'ok', t:`${pid} 품목을 저장했습니다.`});
+  }
+  if (act === 'saveeq' || act === 'addeq') {
+    const k = act === 'addeq' ? 'new' : id;
+    call('save_equipment', {p_id:act === 'addeq' ? null : Number(id), p_name:document.getElementById('eq-' + k).value,
+      p_active:act === 'addeq' ? true : document.getElementById('eqa-' + k).checked}, 'equip',
+      {c:'ok', t:act === 'addeq' ? '장비를 등록했습니다.' : '장비 정보를 저장했습니다.'});
+  }
   if (act === 'auto') call('auto_requisition', {}, 'bn', rid => rid
     ? {c:'ok', t:`${rid} 생성. 아래 '확인 대기 청구'에서 확인하면 중앙 물류로 전송됩니다.`}
     : {c:'info', t:'모든 품목이 재청구점보다 많아 청구할 품목이 없습니다.'});
@@ -687,7 +752,7 @@ document.addEventListener('submit', async e => {
     const p = part(form.part), wasNeed = need(p);
     const qty = parseInt(document.getElementById('f-qty').value, 10);
     call('use_parts', {p_equipment:form.equip, p_part:form.part, p_qty:qty, p_note:document.getElementById('f-note').value.trim()}, 'unit', d =>
-      ({c:d.need ? 'warn' : 'ok', t:`${p.name} ${qty}${p.unit} 불출 완료. 대대 보유 ${d.on_hand}${p.unit}.${d.need && !wasNeed ? ` 재청구점(${p.rop}) 이하가 되어 다음 자동 청구에 포함됩니다.` : ''}`}));
+      ({c:d.need && d.bn_used ? 'warn' : 'ok', t:`${p.name} ${qty}${p.unit} 사용 등록. 자체 재고 ${d.own_used}${p.unit}, 물류대대 불출 ${d.bn_used}${p.unit} (자체 남음 ${d.own_left}, 대대 보유 ${d.on_hand}).${d.need && !wasNeed ? ` 대대 재고가 재청구점(${p.rop}) 이하가 되어 다음 자동 청구에 포함됩니다.` : ''}`}));
   }
 });
 
@@ -700,6 +765,10 @@ document.addEventListener('change', e => {
     const auth = parseInt(document.getElementById('auth-' + pid).value, 10);
     const rop = parseInt(document.getElementById('rop-' + pid).value, 10);
     call('set_stock_level', {p_part:pid, p_auth:auth, p_rop:rop}, 'bn', {c:'ok', t:`${part(pid).name} 정수 ${auth}, 재청구점 ${rop}로 바꿨습니다.`});
+  }
+  if (el.dataset.own) {
+    const pid = el.dataset.own, q = parseInt(el.value, 10);
+    call('set_unit_stock', {p_part:pid, p_qty:q}, 'own', {c:'ok', t:`${part(pid).name} 자체 보유를 ${q}${part(pid).unit}(으)로 바꿨습니다.`});
   }
   if (el.dataset.role) {
     call('set_user_role', {p_user:el.dataset.role, p_role:el.value}, 'users', {c:'ok', t:'역할을 바꿨습니다.'});
