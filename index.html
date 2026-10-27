@@ -135,8 +135,8 @@ th.num{text-align:right}
 .row{display:grid;grid-template-columns:130px minmax(0,1fr);border-bottom:1px solid var(--line)}
 .row > span{background:var(--th);padding:12px 16px;font-size:13.5px;font-weight:500;display:flex;align-items:center}
 .row > select,.row > input{margin:8px 12px}
-select,input[type="text"],input[type="number"],input[type="email"]{font:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:0;padding:8px 10px;width:auto;min-width:0}
-.row > select,.row > input[type="text"],.row > input[type="email"]{width:calc(100% - 24px)}
+select,input[type="text"],input[type="number"],input[type="email"],input[type="password"]{font:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:0;padding:8px 10px;width:auto;min-width:0}
+.row > select,.row > input[type="text"],.row > input[type="email"],.row > input[type="password"]{width:calc(100% - 24px)}
 .row > input[type="number"]{width:110px}
 .frm-act{display:flex;justify-content:flex-end;margin-top:16px}
 fieldset{border:0;margin:0;padding:0;min-width:0}
@@ -234,6 +234,7 @@ const TABS = [
   {id:'central', label:'중앙 물류', title:'중앙 출고 처리', icon:'M4 21V8l8-5 8 5v13 M9 21v-6h6v6 M9 10h.01 M15 10h.01'},
   {id:'proc', label:'조달', title:'조달 요청 관리', icon:'M3 4h2.5l2.2 11h10.6L20.5 7H6.4 M9.5 20h.01 M17 20h.01'},
   {id:'log', label:'처리 이력', title:'처리 이력', icon:'M9 6h11 M9 12h11 M9 18h11 M4.5 6h.01 M4.5 12h.01 M4.5 18h.01'},
+  {id:'account', label:'내 계정', title:'비밀번호 설정', hidden:true},
   {id:'users', label:'사용자 관리', title:'사용자 관리', admin:true, icon:'M16 19v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 17.5V19 M10 10.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6 M20 19v-1.5a3.5 3.5 0 0 0-2.5-3.35 M15.5 4.6a3 3 0 0 1 0 5.8'}
 ];
 
@@ -279,22 +280,59 @@ function showGate(html){
   renderWho();
 }
 
+const AUTH_MODES = {
+  password:{title:'로그인', hint:'이메일과 비밀번호로 로그인합니다.', button:'로그인'},
+  signup:{title:'처음 가입', hint:'이메일과 비밀번호를 정해 가입합니다. 가입 확인 메일이 한 번 발송되니, 메일의 링크를 누른 뒤 로그인하세요.', button:'가입하기'},
+  link:{title:'로그인 링크', hint:'비밀번호 없이 메일로 받은 링크로 로그인합니다. 무료 메일은 시간당 발송 수가 적어 늦거나 실패할 수 있습니다.', button:'로그인 링크 받기'}
+};
+let authMode = 'password';
+
 function loginView(){
-  return `<h1>로그인</h1>
-    <p class="hint">이메일 주소를 입력하면 로그인 링크를 보내드립니다. 비밀번호는 필요 없습니다. 메일의 링크를 누르면 이 화면으로 돌아와 로그인됩니다.</p>
+  const m = AUTH_MODES[authMode];
+  const modeBtn = (id, label) => id === authMode ? '' : `<button class="btn sm" type="button" data-act="mode" data-mode="${id}">${label}</button>`;
+  return `<h1>${m.title}</h1>
+    <p class="hint">${m.hint}</p>
     <form id="loginForm">
-      <div class="frm"><label class="row"><span>이메일</span><input id="f-email" type="email" required autocomplete="email" placeholder="name@example.com"></label></div>
-      <div class="frm-act"><button class="btn primary" type="submit">로그인 링크 받기</button></div>
+      <div class="frm">
+        <label class="row"><span>이메일</span><input id="f-email" type="email" required autocomplete="email" placeholder="name@example.com"></label>
+        ${authMode === 'link' ? '' : `<label class="row"><span>비밀번호</span><input id="f-pw" type="password" required minlength="8" autocomplete="${authMode === 'signup' ? 'new-password' : 'current-password'}" placeholder="8자 이상"></label>`}
+        ${authMode === 'signup' ? '<label class="row"><span>비밀번호 확인</span><input id="f-pw2" type="password" required minlength="8" autocomplete="new-password"></label>' : ''}
+      </div>
+      <div class="frm-act"><button class="btn primary" type="submit">${m.button}</button></div>
     </form>
     ${gateMsg ? `<p class="msg ${gateMsg.c}" role="status">${esc(gateMsg.t)}</p>` : ''}
-    <p class="hint">처음 로그인하면 '승인 대기' 상태가 됩니다. 관리자가 역할을 정해 주면 사용할 수 있습니다.</p>`;
+    <div class="actions">${modeBtn('password', '비밀번호로 로그인')}${modeBtn('signup', '처음 가입')}${modeBtn('link', '로그인 링크로 들어가기')}</div>
+    <p class="hint">처음 가입하면 '승인 대기' 상태가 됩니다. 관리자가 역할을 정해 주면 사용할 수 있습니다. 로그인 링크로 들어온 적만 있다면, 로그인한 뒤 '비밀번호 설정'에서 비밀번호를 정하세요.</p>`;
+}
+
+function passwordForm(){
+  return `<form id="pwForm">
+      <div class="frm">
+        <label class="row"><span>새 비밀번호</span><input id="f-newpw" type="password" required minlength="8" autocomplete="new-password" placeholder="8자 이상"></label>
+        <label class="row"><span>비밀번호 확인</span><input id="f-newpw2" type="password" required minlength="8" autocomplete="new-password"></label>
+      </div>
+      <div class="frm-act"><button class="btn primary" type="submit">비밀번호 저장</button></div>
+    </form>
+    ${msg('account')}`;
 }
 
 function pendingView(){
   return `<h1>승인 대기 중</h1>
     <p class="msg info">${esc(me.email)} 계정으로 로그인했습니다. 관리자가 역할(정비부대, 물류대대, 중앙 물류, 조달)을 정해 주면 화면이 열립니다.</p>
-    <p class="hint">역할을 받은 뒤에는 이 페이지를 새로 고치면 됩니다.</p>
+    <p class="hint">역할을 받은 뒤에는 이 페이지를 새로 고치면 됩니다. 다음부터 메일 없이 로그인하려면 아래에서 비밀번호를 정하세요.</p>
+    ${passwordForm()}
     <div class="frm-act"><button class="btn" type="button" data-act="logout">로그아웃</button></div>`;
+}
+
+function authError(error){
+  const m = error.message || '';
+  if (/invalid login credentials/i.test(m)) return '이메일 또는 비밀번호가 맞지 않습니다. 로그인 링크로만 들어왔던 계정이면 아직 비밀번호가 없습니다.';
+  if (/email not confirmed/i.test(m)) return '가입 확인 메일의 링크를 먼저 눌러 주세요.';
+  if (/already registered/i.test(m)) return '이미 가입된 이메일입니다. 비밀번호로 로그인하거나, 로그인 링크로 들어와 비밀번호를 정하세요.';
+  if (/rate limit/i.test(m)) return '메일 발송 한도를 넘었습니다. 약 1시간 뒤 다시 시도하거나 비밀번호로 로그인하세요.';
+  if (/should be different/i.test(m)) return '지금 비밀번호와 다른 비밀번호를 입력하세요.';
+  if (/at least/i.test(m)) return '비밀번호는 8자 이상이어야 합니다.';
+  return m;
 }
 
 function renderWho(){
@@ -302,6 +340,7 @@ function renderWho(){
   if (!me) { el.innerHTML = ''; return; }
   el.innerHTML = `<span class="email">${esc(me.email || '')}</span>${chip(ROLE_LABEL[me.role] || me.role, me.role === 'pending' ? 'warn' : 'mute')}
     ${me.role === 'admin' ? '<button class="btn sm" type="button" data-act="reset">처음 상태로</button>' : ''}
+    ${me.role === 'pending' ? '' : '<button class="btn sm" type="button" data-act="account">비밀번호 설정</button>'}
     <button class="btn sm" type="button" data-act="logout">로그아웃</button>`;
 }
 
@@ -368,7 +407,7 @@ function renderFlow(){
 function renderTabs(){
   const list = TABS.filter(t => !t.admin || me.role === 'admin');
   if (!list.some(t => t.id === tab)) tab = 'unit';
-  document.getElementById('tabs').innerHTML = list.map(t =>
+  document.getElementById('tabs').innerHTML = list.filter(t => !t.hidden).map(t =>
     `<button type="button" class="lnb-i" aria-current="${t.id === tab ? 'page' : 'false'}" data-tab="${t.id}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${t.icon}"/></svg><span>${t.label}</span></button>`).join('');
   const cur = TABS.find(t => t.id === tab);
   document.getElementById('ptitle').textContent = cur.title;
@@ -530,9 +569,16 @@ function panelUsers(){
   </section>`;
 }
 
+function panelAccount(){
+  return `<section class="card">
+    <div class="head"><div><h2>비밀번호 설정</h2><p class="hint">${esc(me.email)} 계정의 비밀번호를 정하거나 바꿉니다. 저장하면 다음부터 메일 없이 이메일과 비밀번호로 로그인할 수 있습니다.</p></div></div>
+    ${passwordForm()}
+  </section>`;
+}
+
 function render(){
   renderWho(); renderFlow(); renderTabs();
-  const P = {unit:panelUnit, bn:panelBn, central:panelCentral, proc:panelProc, log:panelLog, users:panelUsers};
+  const P = {unit:panelUnit, bn:panelBn, central:panelCentral, proc:panelProc, log:panelLog, users:panelUsers, account:panelAccount};
   document.getElementById('panel').innerHTML = P[tab]();
 }
 
@@ -550,6 +596,8 @@ document.addEventListener('click', e => {
   if (!b || b.disabled) return;
   const {act, id} = b.dataset;
   if (act === 'logout') { sb.auth.signOut(); return; }
+  if (act === 'mode') { authMode = b.dataset.mode; gateMsg = null; showGate(loginView()); return; }
+  if (act === 'account') { go('account'); return; }
   if (act === 'reset') call('reset_demo', {}, 'unit', {c:'info', t:'처음 상태로 되돌렸습니다.'}).then(() => go('unit'));
   if (act === 'auto') call('auto_requisition', {}, 'bn', rid => rid
     ? {c:'ok', t:`${rid} 생성. 아래 '확인 대기 청구'에서 확인하면 중앙 물류로 전송됩니다.`}
@@ -569,11 +617,39 @@ document.addEventListener('submit', async e => {
   e.preventDefault();
   if (e.target.id === 'loginForm') {
     const email = document.getElementById('f-email').value.trim();
-    const btn = e.target.querySelector('button'); btn.disabled = true;
-    const { error } = await sb.auth.signInWithOtp({email, options:{emailRedirectTo: location.origin + location.pathname}});
-    gateMsg = error ? {c:'crit', t:'로그인 링크를 보내지 못했습니다: ' + error.message}
-                    : {c:'ok', t:`${email}로 로그인 링크를 보냈습니다. 메일함(스팸함 포함)을 확인해 주세요.`};
+    const pw = document.getElementById('f-pw')?.value || '';
+    const btn = e.target.querySelector('button[type="submit"]'); btn.disabled = true;
+    const redirect = location.origin + location.pathname;
+    if (authMode === 'signup' && pw !== document.getElementById('f-pw2').value) {
+      gateMsg = {c:'crit', t:'비밀번호 확인이 일치하지 않습니다.'};
+    } else if (authMode === 'password') {
+      const { error } = await sb.auth.signInWithPassword({email, password:pw});
+      gateMsg = error ? {c:'crit', t:authError(error)} : null;
+      if (!error) return;
+    } else if (authMode === 'signup') {
+      const { data, error } = await sb.auth.signUp({email, password:pw, options:{emailRedirectTo:redirect}});
+      if (error) gateMsg = {c:'crit', t:authError(error)};
+      else if (data.session) return;
+      else { authMode = 'password'; gateMsg = {c:'ok', t:`${email}로 가입 확인 메일을 보냈습니다. 메일의 링크를 누른 뒤 비밀번호로 로그인하세요.`}; }
+    } else {
+      const { error } = await sb.auth.signInWithOtp({email, options:{emailRedirectTo:redirect}});
+      gateMsg = error ? {c:'crit', t:'로그인 링크를 보내지 못했습니다: ' + authError(error)}
+                      : {c:'ok', t:`${email}로 로그인 링크를 보냈습니다. 메일함(스팸함 포함)을 확인해 주세요.`};
+    }
     showGate(loginView());
+    const f = document.getElementById('f-email'); if (f) f.value = email;
+    return;
+  }
+  if (e.target.id === 'pwForm') {
+    const pw = document.getElementById('f-newpw').value, pw2 = document.getElementById('f-newpw2').value;
+    flash = {};
+    if (pw.length < 8) flash.account = {c:'crit', t:'비밀번호는 8자 이상이어야 합니다.'};
+    else if (pw !== pw2) flash.account = {c:'crit', t:'비밀번호 확인이 일치하지 않습니다.'};
+    else {
+      const { error } = await sb.auth.updateUser({password:pw});
+      flash.account = error ? {c:'crit', t:authError(error)} : {c:'ok', t:'비밀번호를 저장했습니다. 다음부터 이메일과 비밀번호로 로그인할 수 있습니다.'};
+    }
+    if (me.role === 'pending') showGate(pendingView()); else render();
     return;
   }
   if (e.target.id === 'useForm') {
